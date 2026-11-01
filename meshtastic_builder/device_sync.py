@@ -62,11 +62,16 @@ class FlasherBoard:
     family: str
     source: str
     mui_env: str | None = None
+    hybrid_env: str | None = None
 
 
 # The Web Flasher's "Meshtastic UI" switch builds a board's `<env>-tft` env
 # instead of `<env>`. See parse_boards() for which envs count as that variant.
 MUI_SUFFIX = "-tft"
+
+# Jentastic's hybrid builds: `<env>-hybrid` extends the board and compiles in
+# JenCore and RNode. Offered as a switch on the board, like Meshtastic UI.
+HYBRID_SUFFIX = "-hybrid"
 
 # Env names reach `pio run -e` in the builder; the shell script enforces the same set.
 SAFE_ENV_RE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
@@ -154,6 +159,10 @@ def parse_boards(files: Iterable[tuple[str, str]]) -> dict[str, FlasherBoard]:
     `extra`) is the board's only build, so it is offered as the board, like
     the Web Flasher does. A `-tft` env with a display name of its own (Heltec
     V4 TFT) stays a board of its own.
+
+    `<board>-hybrid` (Jentastic) that takes its display name from the board
+    and is not `extra` is the board's hybrid build, offered as a second switch.
+    There is no flag on the board for it: the env existing is the signal.
     """
     parser, sources = _load_ini(files)
     envs = [s.removeprefix("env:") for s in parser.sections() if s.startswith("env:")]
@@ -211,6 +220,16 @@ def parse_boards(files: Iterable[tuple[str, str]]) -> dict[str, FlasherBoard]:
             and value(mui_env, "board_level").lower() != "extra"
         ):
             boards[env] = replace(board, mui_env=mui_env)
+        hybrid_env = env + HYBRID_SUFFIX
+        if (
+            hybrid_env in resolved
+            and hybrid_env not in boards
+            # Same name as the board, inherited (from the board env or a shared base).
+            and name_source(hybrid_env) == name_source(env)
+            and name_source(hybrid_env) != f"env:{hybrid_env}"
+            and value(hybrid_env, "board_level").lower() != "extra"
+        ):
+            boards[env] = replace(boards[env], hybrid_env=hybrid_env)
     return boards
 
 
@@ -279,6 +298,7 @@ def sync_devices(
                 family=board.family,
                 enabled=True,
                 mui_env=board.mui_env,
+                hybrid_env=board.hybrid_env,
             )
         )
 
@@ -297,7 +317,13 @@ def sync_devices(
             # Same rule as the existing entries: a shared display name gets a suffix.
             label = f"{label} ({env})"
         device = Device(
-            id=device_id, label=label, platformio_env=env, family=board.family, enabled=True, mui_env=board.mui_env
+            id=device_id,
+            label=label,
+            platformio_env=env,
+            family=board.family,
+            enabled=True,
+            mui_env=board.mui_env,
+            hybrid_env=board.hybrid_env,
         )
         result.added.append(device)
         kept.append(device)

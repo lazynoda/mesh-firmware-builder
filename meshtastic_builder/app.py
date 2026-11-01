@@ -53,6 +53,8 @@ def device_json(device: Device, source: FirmwareSource | None, version: str | No
     }
     if device.mui_env:
         payload["mui"] = True
+    if device.hybrid_env:
+        payload["hybrid"] = True
     # Only for boards the selected firmware cannot build at this version: still
     # listed, with why and, when known, the first version that builds it.
     unavailable = source.unavailable(device.platformio_env, version) if source is not None else None

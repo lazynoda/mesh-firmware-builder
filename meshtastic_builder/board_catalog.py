@@ -43,8 +43,8 @@ FETCH_WORKERS = 8
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 # Bumped whenever the list read from platformio.ini changes (a new Device field,
 # a new parsing rule), so lists cached by an older version are read again once.
-# 2: Meshtastic UI. 3: keys inherited through `extends`.
-CATALOG_FORMAT = 3
+# 2: Meshtastic UI. 3: keys inherited through `extends`. 4: hybrid builds.
+CATALOG_FORMAT = 4
 _locks: dict[tuple[str, str], threading.Lock] = {}
 _locks_guard = threading.Lock()
 
@@ -178,19 +178,27 @@ def get_device_for_build(
     device_id: str,
     *,
     mui: bool = False,
+    hybrid: bool = False,
     version: str | None = None,
 ) -> Device:
-    """The board to build. With `mui`, its Meshtastic UI env, labelled as such.
+    """The board to build. With `mui`, its Meshtastic UI env; with `hybrid`, its
+    JenCore + RNode env. Each labelled as such; never both (no env is both).
 
     `version` is the x.y.z being built: a board can be unavailable on some
     versions of a firmware and fine on later ones."""
     devices, _from_firmware = devices_for(config, source, sha)
     for device in devices:
         if device.id == device_id:
+            if mui and hybrid:
+                raise ValueError("Meshtastic UI y la variante hibrida no se pueden combinar.")
             if mui:
                 if not device.mui_env:
                     raise ValueError(f"{device.label} no tiene Meshtastic UI en esta version de {source.name}.")
                 device = replace(device, platformio_env=device.mui_env, label=f"{device.label} (Meshtastic UI)")
+            if hybrid:
+                if not device.hybrid_env:
+                    raise ValueError(f"{device.label} no tiene variante hibrida en esta version de {source.name}.")
+                device = replace(device, platformio_env=device.hybrid_env, label=f"{device.label} (JenCore + RNode)")
             unavailable = source.unavailable(device.platformio_env, version)
             if unavailable is not None:
                 # Listed, so users can read why, but never queued: it cannot succeed.

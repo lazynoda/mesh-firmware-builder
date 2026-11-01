@@ -10,6 +10,9 @@ const DICT = {
     "step1.title": "Firmware y dispositivo",
     "step1.device": "Dispositivo",
     "step1.mui": "Meshtastic UI",
+    "step1.hybrid": "JenCore + RNode (hibrido)",
+    "step1.hybridHint":
+      "Compila la variante hibrida de Jentastic, con JenCore y RNode activados. JenCore: el nodo escucha y repite tambien el trafico JenCore y tiene canales JC:. RNode: puede hacer de RNode para Reticulum. Es experimental y ocupa mas memoria.",
     "help.label": "Ayuda",
     "step1.muiHint": "Compila la variante con Meshtastic UI (MUI), la interfaz tactil para la pantalla de la placa. Es lo mismo que el interruptor del Web Flasher.",
     "step1.devicePlaceholder": "Busca un dispositivo",
@@ -304,6 +307,9 @@ const DICT = {
     "step1.title": "Firmware and device",
     "step1.device": "Device",
     "step1.mui": "Meshtastic UI",
+    "step1.hybrid": "JenCore + RNode (hybrid)",
+    "step1.hybridHint":
+      "Builds Jentastic's hybrid variant, with JenCore and RNode compiled in. JenCore: the node also hears and relays JenCore traffic and gets JC: channels. RNode: it can act as an RNode for Reticulum. Experimental, and it uses more memory.",
     "help.label": "Help",
     "step1.muiHint": "Builds the Meshtastic UI (MUI) variant, the touch interface for the board's screen. Same as the Web Flasher's switch.",
     "step1.devicePlaceholder": "Search for a device",

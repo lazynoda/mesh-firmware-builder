@@ -652,6 +652,117 @@ class MeshtasticUiTests(unittest.TestCase):
             self.assertEqual({d.id: d.mui_env for d in devices}["t-deck"], "t-deck-tft")
 
 
+HYBRID_INI = """
+[nrf52840_base]
+custom_meshtastic_architecture = nrf52840
+
+[env:heltec-mesh-node-t096]
+extends = nrf52840_base
+custom_meshtastic_actively_supported = true
+custom_meshtastic_display_name = Heltec Mesh Node 096
+
+[env:heltec-mesh-node-t096-hybrid]
+extends = env:heltec-mesh-node-t096
+build_flags = -DNEXUS_ENABLE_JENCORE=1 -DNEXUS_ENABLE_RNODE=1
+
+[env:tbeam]
+custom_meshtastic_architecture = esp32
+custom_meshtastic_actively_supported = true
+custom_meshtastic_display_name = LILYGO T-Beam
+
+[env:tbeam-hybrid]
+extends = env:tbeam
+board_level = extra
+
+[env:rak4631]
+custom_meshtastic_architecture = nrf52840
+custom_meshtastic_actively_supported = true
+custom_meshtastic_display_name = RAK4631
+
+[env:rak4631-hybrid]
+extends = env:rak4631
+custom_meshtastic_display_name = RAK4631 Hybrid
+
+[env:noscreen]
+extends = nrf52840_base
+board_level = release
+
+[env:noscreen-hybrid]
+extends = env:noscreen
+"""
+HYBRID_SHA = "f" * 40
+
+
+class HybridTests(unittest.TestCase):
+    """Jentastic's `<env>-hybrid` (JenCore + RNode) is a switch on the board, like Meshtastic UI."""
+
+    def test_only_boards_with_a_hidden_hybrid_env_get_the_option(self):
+        from meshtastic_builder.device_sync import parse_boards
+
+        boards = parse_boards([("variants/nrf52840/all/platformio.ini", HYBRID_INI)])
+        self.assertEqual(boards["heltec-mesh-node-t096"].hybrid_env, "heltec-mesh-node-t096-hybrid")
+        self.assertNotIn("heltec-mesh-node-t096-hybrid", boards)
+        # board_level = extra: not offered.
+        self.assertIsNone(boards["tbeam"].hybrid_env)
+        # A hybrid env with its own display name is a board of its own, picked directly.
+        self.assertIsNone(boards["rak4631"].hybrid_env)
+        self.assertIn("rak4631-hybrid", boards)
+        # Its base is not an offered board, so there is nothing to hang the switch on.
+        self.assertNotIn("noscreen", boards)
+        self.assertNotIn("noscreen-hybrid", boards)
+
+    def test_hybrid_build_uses_the_hybrid_env_and_is_labelled(self):
+        from meshtastic_builder.app import device_json
+        from meshtastic_builder.board_catalog import devices_for
+
+        def head(url, timeout=15):
+            if url == "https://api.github.com/repos/lazynoda/meshtastic-firmware/commits/nodastic":
+                return json.dumps({"sha": HYBRID_SHA}), {}
+            if url.endswith(f"{HYBRID_SHA}/version.properties"):
+                return "major = 2\nminor = 8\nbuild = 105\n", {}
+            if url == f"https://api.github.com/repos/lazynoda/meshtastic-firmware/git/trees/{HYBRID_SHA}":
+                return json.dumps({"tree": [{"path": "variants", "type": "tree", "sha": VARIANTS_SHA}]}), {}
+            if url == f"https://api.github.com/repos/lazynoda/meshtastic-firmware/git/trees/{VARIANTS_SHA}?recursive=1":
+                tree = [{"path": "nrf52840/all/platformio.ini", "type": "blob", "sha": "9" * 40, "size": 900}]
+                return json.dumps({"truncated": False, "tree": tree}), {}
+            if url == f"https://raw.githubusercontent.com/lazynoda/meshtastic-firmware/{HYBRID_SHA}/variants/nrf52840/all/platformio.ini":
+                return HYBRID_INI, {}
+            return fake_github(url, timeout)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            config = temp_config(Path(tmp))
+            source = get_firmware(ROOT, "nodastic")
+            cache = userprefs_cache_path(config, HYBRID_SHA, "nodastic")
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(TEMPLATE, encoding="utf-8")
+            with patch("meshtastic_builder.firmware._http_get", head):
+                devices, _ = devices_for(config, source, HYBRID_SHA)
+                listed = {d.platformio_env: device_json(d, source) for d in devices}
+
+                def submit(device_id, **extra):
+                    return create_build_submission(
+                        config,
+                        {"deviceId": device_id, "firmwareId": "nodastic", "prefsJsonc": NAMED_PREFS, **extra},
+                    )
+
+                t096 = listed["heltec-mesh-node-t096"]["id"]
+                hybrid_row = submit(t096, hybrid=True)["row"]
+                plain_row = submit(t096)["row"]
+                with self.assertRaises(ValueError):
+                    submit("tbeam", hybrid=True)
+                with self.assertRaises(ValueError):
+                    submit(t096, hybrid="yes")
+                with self.assertRaises(ValueError):
+                    submit(t096, hybrid=True, mui=True)
+            self.assertTrue(listed["heltec-mesh-node-t096"]["hybrid"])
+            self.assertNotIn("hybrid", listed["tbeam"])
+            self.assertNotIn("heltec-mesh-node-t096-hybrid", listed)
+            self.assertEqual(hybrid_row["platformio_env"], "heltec-mesh-node-t096-hybrid")
+            self.assertEqual(hybrid_row["device_id"], t096)
+            self.assertEqual(hybrid_row["device_label"], "Heltec Mesh Node 096 (JenCore + RNode)")
+            self.assertEqual(plain_row["platformio_env"], "heltec-mesh-node-t096")
+
+
 class BuilderTests(unittest.TestCase):
     def build_row(self, **overrides):
         row = {

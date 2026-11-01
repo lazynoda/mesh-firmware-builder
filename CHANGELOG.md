@@ -21,6 +21,10 @@ All notable changes to this project are documented here. The format follows
   version (`fixedSinceFirmwareVersion` in `data/firmwares.json`). On an older
   version the page says from which version it builds, or that the version is
   not out yet.
+- Jentastic hybrid builds: a "JenCore + RNode (hybrid)" checkbox under the
+  board builds its `<env>-hybrid` variant (Heltec Mesh Node T096, Heltec V3,
+  Heltec V4 and SenseCAP Mesh-Tracker-X1 on v2.8.105). `POST /api/builds`
+  takes `"hybrid": true`.
 
 ### Changed
 
@@ -31,6 +35,10 @@ All notable changes to this project are documented here. The format follows
 - A build that does not fit in the device's flash no longer tells the user to
   drop options or pick another device: the size comes from the firmware, not
   from their settings.
+
+### Upgrading
+
+- Board lists cached by earlier versions are read again from GitHub once.
 
 ## [1.3.1] - 2026-10-29
 

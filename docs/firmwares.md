@@ -97,6 +97,29 @@ plain board is `extra` (Seeed Wio Tracker L2) is offered as the board. In
 upstream 2.8.1, Jentastic 2.8.104 and Nodastic this gives the switch to
 T-Deck, SenseCAP Indicator, PICOmputer S3, WisMesh Tap V2 and ThinkNode M9.
 
+### Hybrid builds (Jentastic)
+
+From Jentastic 2.8.105 some boards have an `<env>-hybrid` env: the board with
+JenCore and RNode compiled in (`-DNEXUS_ENABLE_JENCORE=1
+-DNEXUS_ENABLE_RNODE=1`). It extends the board and takes its display name, so
+it is not a board of its own. The builder offers it as a second checkbox under
+the board, "JenCore + RNode (hybrid)", unticked by default, when:
+
+- `<env>-hybrid` exists for an offered board `<env>`;
+- it takes its display name from the same place as the board (inherited, not
+  its own);
+- it is not `board_level = extra`.
+
+Ticking it builds that env, stored with ` (JenCore + RNode)` appended to the
+board label. Unlike Meshtastic UI there is no `custom_meshtastic_has_*` key:
+the env existing is the signal. A hybrid env with a display name of its own is
+listed as a board, and one whose base is not an offered board (Jentastic's
+`nrf52_promicro_diy_sx1262-noscreen-hybrid`, `cutretech-esp32s3-hybrid`) is not
+offered at all. In Jentastic 2.8.105 this gives the switch to Heltec Mesh Node
+T096, Heltec V3, Heltec V4 and Seeed SenseCAP Mesh-Tracker-X1. The other
+firmwares have no `-hybrid` envs. Meshtastic UI and hybrid are never combined:
+no env is both.
+
 Lists cached by an older version are read again from GitHub once
 (`CATALOG_FORMAT` in `board_catalog.py`, bumped whenever the parsing changes).
 

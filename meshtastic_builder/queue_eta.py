@@ -90,8 +90,9 @@ def board_families(config: Config) -> dict[str, str]:
         return families
     for device in devices:
         families[device.platformio_env] = device.family
-        if device.mui_env:
-            families[device.mui_env] = device.family
+        for variant in (device.mui_env, device.hybrid_env):
+            if variant:
+                families[variant] = device.family
     return families
 
 

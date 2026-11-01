@@ -59,6 +59,8 @@ const state = {
   muiDevices: new Set(),
   // The board the Meshtastic UI checkbox was last defaulted for.
   muiDefaultFor: null,
+  // Boards with a hybrid (JenCore + RNode) build in the selected firmware version.
+  hybridDevices: new Set(),
   firmwares: [],
   firmwareNames: {},
   versions: [],
@@ -675,6 +677,19 @@ function syncMuiOption() {
   }
 }
 
+// Jentastic's hybrid build (JenCore + RNode compiled in): only for boards that
+// have an `<env>-hybrid` env at this version. Off by default, since it is an
+// extra on top of the board, and unticked whenever it is hidden so it never
+// leaks into a submit. No board has both a MUI and a hybrid build; if one ever
+// does, ticking one unticks the other, because no env is both.
+function syncHybridOption() {
+  const picker = $("deviceId");
+  const device = picker ? picker.value : "";
+  const available = state.hybridDevices.has(device);
+  $("hybridOption").hidden = !available;
+  if (!available) $("hybridEnabled").checked = false;
+}
+
 // (?) buttons: hover and keyboard focus are pure CSS; a tap or click toggles the
 // box so it also works on touch screens. A click elsewhere or Escape closes it.
 function wireHelpTips() {
@@ -753,6 +768,7 @@ async function loadDevices() {
   let devices;
   state.unavailableDevices = {};
   state.muiDevices = new Set();
+  state.hybridDevices = new Set();
   if (firmware && (tag || firmware.versioning === "branch")) {
     const params = new URLSearchParams({ firmware: firmware.id });
     if (tag) params.set("tag", tag);
@@ -766,6 +782,7 @@ async function loadDevices() {
       state.deviceLabels[device.id] = device.label;
       if (device.unavailable) state.unavailableDevices[device.id] = device.unavailable;
       if (device.mui) state.muiDevices.add(device.id);
+      if (device.hybrid) state.hybridDevices.add(device.id);
     }
   } else {
     devices = await loadDeviceCatalog();
@@ -786,9 +803,11 @@ async function loadDevices() {
   $("deviceId").addEventListener("change", syncWifiAvailability);
   $("deviceId").addEventListener("change", syncDeviceAvailability);
   $("deviceId").addEventListener("change", syncMuiOption);
+  $("deviceId").addEventListener("change", syncHybridOption);
   $("deviceId").addEventListener("change", updatePrefsPreview);
   syncDeviceAvailability();
   syncMuiOption();
+  syncHybridOption();
   // The list arrives after the first render, so repaint with the real device.
   syncWifiAvailability();
   updatePrefsPreview();
@@ -1701,6 +1720,8 @@ async function submitBuild(event) {
     }
     if (!$("muiOption").hidden && $("muiEnabled").checked) {
       payload.mui = true;
+    } else if (!$("hybridOption").hidden && $("hybridEnabled").checked) {
+      payload.hybrid = true;
     }
     const codeOptions = buildCodeOptions();
     if (codeOptions) {
@@ -1843,6 +1864,12 @@ function bindEvents() {
     updateLongNameCounter();
   });
   $("customLoraEnabled").addEventListener("change", syncCustomLora);
+  $("muiEnabled").addEventListener("change", () => {
+    if ($("muiEnabled").checked) $("hybridEnabled").checked = false;
+  });
+  $("hybridEnabled").addEventListener("change", () => {
+    if ($("hybridEnabled").checked) $("muiEnabled").checked = false;
+  });
   wireHelpTips();
   $("modemPreset").addEventListener("change", syncPresetChannelName);
   $("copyBuildUrl").addEventListener("click", async () => {

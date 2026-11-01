@@ -61,6 +61,9 @@ version at or above `fixedSinceFirmwareVersion` has no `unavailable`.
 A board whose firmware has a Meshtastic UI build it does not list as a board of
 its own (the `<env>-tft` env of a board declaring `custom_meshtastic_has_mui`)
 carries `"mui": true`. See [Firmware Sources](firmwares.md#meshtastic-ui).
+A board with a Jentastic hybrid build (`<env>-hybrid`, JenCore + RNode)
+carries `"hybrid": true`. See
+[Firmware Sources](firmwares.md#hybrid-builds-jentastic).
 
 Response:
 
@@ -204,6 +207,10 @@ compiles the board's Meshtastic UI env (`t-deck-tft` for `t-deck`) and stores
 it as the build's `platformio_env`, with ` (Meshtastic UI)` appended to the
 board label. It is refused for a board without `"mui": true` in
 `/api/devices`.
+
+`hybrid` is optional the same way. With `true` the build compiles the board's
+`<env>-hybrid` env and appends ` (JenCore + RNode)` to the label. It is
+refused for a board without `"hybrid": true`, and together with `mui`.
 
 `codeOptions` is optional. Both sub-options are independent, missing
 `customLora` fields fall back to their documented defaults, and the whole object

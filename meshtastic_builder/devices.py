@@ -14,6 +14,8 @@ class Device:
     enabled: bool
     # The `<env>-tft` build of this board (Meshtastic UI), when the firmware has one.
     mui_env: str | None = None
+    # The `<env>-hybrid` build (Jentastic: JenCore + RNode compiled in), when it has one.
+    hybrid_env: str | None = None
 
 
 def load_devices(root_dir: Path) -> list[Device]:

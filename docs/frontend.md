@@ -129,7 +129,9 @@ The form is split into the settings most users touch and everything else:
 1. Firmware and device. Under the device picker, level with the repository
    link under the firmware, the "Meshtastic UI" checkbox with a (?) help
    button; it shows only for boards with `mui` and is unticked whenever it is
-   hidden. The (?) box opens on hover, keyboard focus or tap
+   hidden. Under it, the same way, the "JenCore + RNode (hybrid)" checkbox for
+   boards with `hybrid` (Jentastic), unticked by default; ticking one of the
+   two unticks the other. The (?) box opens on hover, keyboard focus or tap
    (`wireHelpTips()`), closes on an outside click or Escape, and slides back
    inside the screen near an edge.
 2. Node: long/short name and timezone.
