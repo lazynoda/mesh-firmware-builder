@@ -1760,7 +1760,10 @@ function renderBuildFailure(build) {
   const known = t(`buildError.${code}`) !== `buildError.${code}`;
   const key = known ? code : "unknown";
   $("buildFailureReason").textContent = t(`buildError.${key}`);
-  $("buildFailureHint").textContent = t(`buildError.${key}Hint`);
+  // An empty hint means there is nothing the user can do, so drop the line.
+  const hint = t(`buildError.${key}Hint`);
+  $("buildFailureHint").textContent = hint;
+  $("buildFailureHint").hidden = !hint;
   const detail = $("buildFailureDetail");
   if (build.error) {
     detail.textContent = `${t("buildError.detail")}: ${build.error}`;

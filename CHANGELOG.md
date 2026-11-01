@@ -15,6 +15,14 @@ All notable changes to this project are documented here. The format follows
   hidden when the queue looks stuck. Nothing is shown with nobody ahead.
 - `GET /api/builds/<token>` and `POST /api/builds` return a `queue` object
   with the position and times (counts only, nothing about other builds).
+- A failed build says the error will be looked into, and links to
+  [@lazynoda](https://t.me/lazynoda) on Telegram for questions.
+
+### Changed
+
+- A build that does not fit in the device's flash no longer tells the user to
+  drop options or pick another device: the size comes from the firmware, not
+  from their settings.
 
 ## [1.3.1] - 2026-10-29
 

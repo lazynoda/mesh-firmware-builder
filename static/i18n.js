@@ -238,6 +238,8 @@ const DICT = {
 
     "buildError.title": "Por que fallo",
     "buildError.detail": "Detalle tecnico",
+    "buildError.followUp":
+      "Vamos a estudiar este error para intentar solucionarlo. Si tienes cualquier duda, escribe a <a href=\"https://t.me/lazynoda\" target=\"_blank\" rel=\"noreferrer\">@lazynoda</a> en Telegram.",
     "buildError.patch_failed":
       "No se pudo aplicar al codigo del firmware una modificacion que esta compilacion necesitaba.",
     "buildError.patch_failedHint":
@@ -246,7 +248,8 @@ const DICT = {
     "buildError.compile_errorHint":
       "Casi siempre es un fallo del propio firmware en esa version, no de lo que pusiste. Prueba con otra version.",
     "buildError.firmware_too_big": "El firmware compilado no cabe en la memoria de este dispositivo.",
-    "buildError.firmware_too_bigHint": "Quita opciones o elige un dispositivo con mas memoria.",
+    // No hint: what fits in flash is the firmware's doing, not something the user can change.
+    "buildError.firmware_too_bigHint": "",
     "buildError.no_artifacts": "La compilacion termino sin generar ningun fichero de firmware.",
     "buildError.no_artifactsHint": "Vuelve a intentarlo. Si se repite con el mismo dispositivo, avisame.",
     "buildError.timeout": "La compilacion tardo demasiado y se cancelo.",
@@ -525,6 +528,8 @@ const DICT = {
 
     "buildError.title": "Why it failed",
     "buildError.detail": "Technical detail",
+    "buildError.followUp":
+      "We will look into this error and try to fix it. If you have any questions, message <a href=\"https://t.me/lazynoda\" target=\"_blank\" rel=\"noreferrer\">@lazynoda</a> on Telegram.",
     "buildError.patch_failed":
       "A change this build needed could not be applied to the firmware source.",
     "buildError.patch_failedHint":
@@ -533,7 +538,7 @@ const DICT = {
     "buildError.compile_errorHint":
       "This is almost always a bug in that firmware version rather than in what you entered. Try another version.",
     "buildError.firmware_too_big": "The compiled firmware does not fit in this device's memory.",
-    "buildError.firmware_too_bigHint": "Drop some options or pick a device with more memory.",
+    "buildError.firmware_too_bigHint": "",
     "buildError.no_artifacts": "The build finished without producing any firmware file.",
     "buildError.no_artifactsHint": "Try again. If it keeps happening on the same device, tell me.",
     "buildError.timeout": "The build took too long and was cancelled.",

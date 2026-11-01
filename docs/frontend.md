@@ -254,7 +254,8 @@ warning (`.patch-only`) show below `nativeSinceFirmwareVersion`, where the
 builder applies `docker/patches/userprefs-ext.patch`. A failed build renders
 `#buildFailure` instead: the server's `errorCode` translated through
 `buildError.*`, with `error` shown verbatim underneath as the technical
-detail. Value ranges come from
+detail, and a closing line (`buildError.followUp`) for every failure: the
+error will be looked into, and questions go to @lazynoda on Telegram. Value ranges come from
 `GET /api/build-options`, so they live in `data/build_options.json` and are
 never duplicated in JavaScript. Enabling manual LoRa configuration disables the
 modem preset selector with an inline explanation.
