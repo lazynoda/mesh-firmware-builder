@@ -51,10 +51,12 @@ that firmware at that version, read from its own repository (see
 [Firmware Sources](firmwares.md#boards)). `fromFirmware` is `false` when GitHub
 could not be reached and the static list was returned instead.
 
-A board that firmware lists but cannot build yet carries `unavailable`, with a
-reason code and the GitHub issue tracking it (see
-[Firmware Sources](firmwares.md#unavailable-boards)). `POST /api/builds`
-refuses it.
+A board that firmware lists but cannot build at that version carries
+`unavailable`, with a reason code, the GitHub issue tracking it and, when a
+later version builds it, `fixedSinceFirmwareVersion` (see
+[Firmware Sources](firmwares.md#unavailable-boards)). The same board on a
+version at or above `fixedSinceFirmwareVersion` has no `unavailable`.
+`POST /api/builds` refuses it on the affected versions only.
 
 A board whose firmware has a Meshtastic UI build it does not list as a board of
 its own (the `<env>-tft` env of a board declaring `custom_meshtastic_has_mui`)
@@ -85,7 +87,8 @@ Response:
       "family": "nrf52840",
       "unavailable": {
         "reason": "firmware_too_big",
-        "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3"
+        "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+        "fixedSinceFirmwareVersion": "2.8.105"
       }
     }
   ]

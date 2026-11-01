@@ -93,19 +93,53 @@ class CatalogTests(unittest.TestCase):
             "heltec-mesh-pocket-5000-inkhud",
             "heltec-mesh-pocket-10000",
             "heltec-mesh-pocket-10000-inkhud",
+            "t-echo",
+            "t-echo-inkhud",
         )
         for env in boards:
-            item = jentastic.unavailable(env)
+            item = jentastic.unavailable(env, "v2.8.104")
             self.assertIsNotNone(item, env)
             self.assertEqual(item.reason, "firmware_too_big")
             self.assertEqual(item.issue, "https://github.com/lazynoda/meshtastic-builder/issues/3")
-        self.assertIsNone(jentastic.unavailable("heltec-mesh-node-t114-inkhud"))
+            self.assertEqual(item.fixed_since, "2.8.105")
+            # Jentastic's fix for issue #3 ships in 2.8.105.
+            self.assertIsNone(jentastic.unavailable(env, "v2.8.105"), env)
+        self.assertIsNone(jentastic.unavailable("heltec-mesh-node-t114-inkhud", "v2.8.104"))
         self.assertIsNone(get_firmware(ROOT, "meshtastic").unavailable("heltec-mesh-node-t096"))
         self.assertIsNone(get_firmware(ROOT, "nodastic").unavailable("heltec-mesh-node-t096"))
+
+    def test_unavailable_board_is_scoped_to_versions_before_the_fix(self):
+        from meshtastic_builder.firmwares import UnavailableBoard
+
+        issue = "https://github.com/a/b/issues/1"
+        fixed = UnavailableBoard("t-echo", "firmware_too_big", issue, fixed_since="2.8.105")
+        for version, blocked in [
+            ("v2.8.103", True),
+            ("v2.8.104", True),
+            ("2.8.104", True),
+            ("v2.8.105", False),
+            ("v2.8.105-001", False),
+            ("v2.9.0", False),
+            ("v3.0.0", False),
+            # Unknown or unparsable: refuse, the safe side.
+            (None, True),
+            ("nodastic", True),
+        ]:
+            with self.subTest(version=version):
+                self.assertEqual(fixed.applies_to(version), blocked)
+        forever = UnavailableBoard("t-echo", "firmware_too_big", issue)
+        self.assertTrue(forever.applies_to("v9.9.9"))
+        self.assertEqual(
+            fixed.public(), {"reason": "firmware_too_big", "issue": issue, "fixedSinceFirmwareVersion": "2.8.105"}
+        )
+        self.assertNotIn("fixedSinceFirmwareVersion", forever.public())
 
     def test_catalog_rejects_malformed_unavailable_boards(self):
         base = {"id": "x", "name": "X", "url": "https://github.com/a/b", "versioning": "tags"}
         cases = [
+            {"t096": {"reason": "firmware_too_big", "issue": "https://github.com/a/b/issues/1", "fixedSinceFirmwareVersion": "v2.8.105"}},
+            {"t096": {"reason": "firmware_too_big", "issue": "https://github.com/a/b/issues/1", "fixedSinceFirmwareVersion": 2.8}},
+            {"t096": {"reason": "firmware_too_big", "issue": "https://github.com/a/b/issues/1", "fixedSinceFirmwareVersion": "2.8"}},
             ["t096"],
             {"bad env!": {"reason": "firmware_too_big", "issue": "https://github.com/a/b/issues/1"}},
             {"t096": {"issue": "https://github.com/a/b/issues/1"}},
@@ -422,6 +456,44 @@ class BoardCatalogTests(unittest.TestCase):
             self.assertEqual(row["platformio_env"], "tbeam")
             with connection(config) as conn:
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM build_requests").fetchone()[0], 1)
+
+    def test_board_fixed_in_a_later_version_is_refused_only_before_it(self):
+        from meshtastic_builder.app import device_json
+        from meshtastic_builder.board_catalog import devices_for
+        from meshtastic_builder.firmwares import UnavailableBoard
+
+        issue = "https://github.com/lazynoda/meshtastic-builder/issues/3"
+        with tempfile.TemporaryDirectory() as tmp:
+            config = temp_config(Path(tmp))
+            cache = userprefs_cache_path(config, NODASTIC_SHA, "nodastic")
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(TEMPLATE, encoding="utf-8")
+            # The fake Nodastic head is 2.8.1: fixed in 2.8.2 = still broken; fixed in 2.8.1 = builds.
+            for fixed_since, refused in (("2.8.2", True), ("2.8.1", False)):
+                source = replace(
+                    get_firmware(ROOT, "nodastic"),
+                    unavailable_boards=(
+                        UnavailableBoard("nrf52_promicro_diy_e28", "firmware_too_big", issue, fixed_since=fixed_since),
+                    ),
+                )
+                with self.subTest(fixed_since=fixed_since), patch(
+                    "meshtastic_builder.firmware._http_get", fake_github
+                ), patch("meshtastic_builder.submissions.get_firmware", return_value=source):
+                    devices, _ = devices_for(config, source, NODASTIC_SHA)
+                    listed = {d.platformio_env: device_json(d, source, "2.8.1") for d in devices}
+                    payload = {"deviceId": "nrf52-promicro-diy-e28", "firmwareId": "nodastic", "prefsJsonc": NAMED_PREFS}
+                    if refused:
+                        self.assertEqual(
+                            listed["nrf52_promicro_diy_e28"]["unavailable"]["fixedSinceFirmwareVersion"], "2.8.2"
+                        )
+                        with self.assertRaises(ValueError) as error:
+                            create_build_submission(config, payload)
+                        self.assertIn("2.8.2", str(error.exception))
+                        self.assertIn(issue, str(error.exception))
+                    else:
+                        self.assertNotIn("unavailable", listed["nrf52_promicro_diy_e28"])
+                        row = create_build_submission(config, payload)["row"]
+                        self.assertEqual(row["platformio_env"], "nrf52_promicro_diy_e28")
 
     def test_hostile_env_names_are_dropped(self):
         from meshtastic_builder.device_sync import parse_boards

@@ -44,7 +44,7 @@ def _public_error(message: str) -> dict[str, str]:
     return {"error": message}
 
 
-def device_json(device: Device, source: FirmwareSource | None) -> dict[str, Any]:
+def device_json(device: Device, source: FirmwareSource | None, version: str | None = None) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "id": device.id,
         "label": device.label,
@@ -53,8 +53,9 @@ def device_json(device: Device, source: FirmwareSource | None) -> dict[str, Any]
     }
     if device.mui_env:
         payload["mui"] = True
-    # Only for boards the selected firmware cannot build yet: still listed, with why.
-    unavailable = source.unavailable(device.platformio_env) if source is not None else None
+    # Only for boards the selected firmware cannot build at this version: still
+    # listed, with why and, when known, the first version that builds it.
+    unavailable = source.unavailable(device.platformio_env, version) if source is not None else None
     if unavailable is not None:
         payload["unavailable"] = unavailable.public()
     return payload
@@ -100,12 +101,14 @@ class MeshtasticBuilderHandler(BaseHTTPRequestHandler):
                     return self.head_not_allowed()
                 firmware_id = query.get("firmware", [""])[0]
                 source = None
+                gate_version = None
                 if firmware_id:
                     # The boards of the selected firmware at the selected version.
                     version = resolve_supported_version(
                         self.config, query.get("tag", [""])[0] or None, firmware_id=firmware_id
                     )
                     source = get_firmware(self.config.root_dir, firmware_id)
+                    gate_version = version["version"]
                     devices, from_firmware = devices_for(self.config, source, version["sha"])
                 else:
                     # No firmware named: the static list, which also labels old builds.
@@ -113,7 +116,7 @@ class MeshtasticBuilderHandler(BaseHTTPRequestHandler):
                 return self.json_response(
                     {
                         "fromFirmware": from_firmware,
-                        "devices": [device_json(device, source) for device in devices],
+                        "devices": [device_json(device, source, gate_version) for device in devices],
                     }
                 )
             if path in {"/api/health", "/health"}:

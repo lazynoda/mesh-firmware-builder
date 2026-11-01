@@ -15,23 +15,38 @@
       "unavailableBoards": {
         "heltec-mesh-node-t096": {
           "reason": "firmware_too_big",
-          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3"
+          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+          "fixedSinceFirmwareVersion": "2.8.105"
         },
         "heltec-mesh-pocket-5000": {
           "reason": "firmware_too_big",
-          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3"
+          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+          "fixedSinceFirmwareVersion": "2.8.105"
         },
         "heltec-mesh-pocket-5000-inkhud": {
           "reason": "firmware_too_big",
-          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3"
+          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+          "fixedSinceFirmwareVersion": "2.8.105"
         },
         "heltec-mesh-pocket-10000": {
           "reason": "firmware_too_big",
-          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3"
+          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+          "fixedSinceFirmwareVersion": "2.8.105"
         },
         "heltec-mesh-pocket-10000-inkhud": {
           "reason": "firmware_too_big",
-          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3"
+          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+          "fixedSinceFirmwareVersion": "2.8.105"
+        },
+        "t-echo": {
+          "reason": "firmware_too_big",
+          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+          "fixedSinceFirmwareVersion": "2.8.105"
+        },
+        "t-echo-inkhud": {
+          "reason": "firmware_too_big",
+          "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+          "fixedSinceFirmwareVersion": "2.8.105"
         }
       }
     },

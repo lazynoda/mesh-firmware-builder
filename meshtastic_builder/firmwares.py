@@ -15,6 +15,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from .code_options import parse_version
+
 
 DEFAULT_FIRMWARE_ID = "meshtastic"
 VERSIONING_TAGS = "tags"
@@ -25,6 +27,7 @@ _REPO_URL_RE = re.compile(r"^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.
 _BRANCH_RE = re.compile(r"^[A-Za-z0-9._/-]{1,100}$")
 _ENV_RE = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 _REASON_RE = re.compile(r"^[a-z_]{1,40}$")
+_FIXED_VERSION_RE = re.compile(r"^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}$")
 _ISSUE_URL_RE = re.compile(r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/[0-9]+$")
 
 
@@ -40,9 +43,23 @@ class UnavailableBoard:
     env: str
     reason: str
     issue: str
+    # First firmware version (x.y.z) that builds this board. None = no fixed
+    # release yet, so every version is refused.
+    fixed_since: str | None = None
+
+    def applies_to(self, version: str | None) -> bool:
+        """Whether `version` still has the problem. A version that does not parse
+        (or none at all) is treated as affected: refusing is the safe side."""
+        if self.fixed_since is None:
+            return True
+        current = parse_version(version or "")
+        return current is None or current < parse_version(self.fixed_since)
 
     def public(self) -> dict[str, str]:
-        return {"reason": self.reason, "issue": self.issue}
+        payload = {"reason": self.reason, "issue": self.issue}
+        if self.fixed_since is not None:
+            payload["fixedSinceFirmwareVersion"] = self.fixed_since
+        return payload
 
 
 @dataclass(frozen=True)
@@ -57,8 +74,12 @@ class FirmwareSource:
     license: str = "GPL-3.0-or-later"
     unavailable_boards: tuple[UnavailableBoard, ...] = ()
 
-    def unavailable(self, env: str) -> UnavailableBoard | None:
-        return next((item for item in self.unavailable_boards if item.env == env), None)
+    def unavailable(self, env: str, version: str | None = None) -> UnavailableBoard | None:
+        """The entry blocking `env` at `version` (x.y.z or tag), if any."""
+        return next(
+            (item for item in self.unavailable_boards if item.env == env and item.applies_to(version)),
+            None,
+        )
 
     @property
     def full_name(self) -> str:
@@ -119,7 +140,8 @@ def _parse_entry(raw: object) -> FirmwareSource:
 
 
 def _parse_unavailable(firmware_id: str, raw: object) -> tuple[UnavailableBoard, ...]:
-    """`{"<platformio env>": {"reason": "<code>", "issue": "<GitHub issue URL>"}}`."""
+    """`{"<platformio env>": {"reason": "<code>", "issue": "<GitHub issue URL>",
+    "fixedSinceFirmwareVersion": "<x.y.z, optional>"}}`."""
     if raw is None:
         return ()
     if not isinstance(raw, dict):
@@ -136,7 +158,13 @@ def _parse_unavailable(firmware_id: str, raw: object) -> tuple[UnavailableBoard,
             raise ValueError(f"Firmware {firmware_id}: unavailableBoards.{env} needs a reason code.")
         if not _ISSUE_URL_RE.match(issue):
             raise ValueError(f"Firmware {firmware_id}: unavailableBoards.{env} needs a GitHub issue URL.")
-        boards.append(UnavailableBoard(env=env, reason=reason, issue=issue))
+        fixed_since = spec.get("fixedSinceFirmwareVersion")
+        if fixed_since is not None:
+            if not isinstance(fixed_since, str) or not _FIXED_VERSION_RE.match(fixed_since):
+                raise ValueError(
+                    f"Firmware {firmware_id}: unavailableBoards.{env}.fixedSinceFirmwareVersion must be x.y.z."
+                )
+        boards.append(UnavailableBoard(env=env, reason=reason, issue=issue, fixed_since=fixed_since))
     return tuple(boards)
 
 

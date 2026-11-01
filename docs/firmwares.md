@@ -125,24 +125,49 @@ that tracks the fix. Unlike `EXCLUDED_ENVS`/`EXCLUDED_FAMILIES` in
 `device_sync.py`, which hide a board from every firmware, this is per firmware
 and the board stays visible:
 
-- `/api/devices` lists it with `"unavailable": {"reason", "issue"}`;
+- `/api/devices` lists it with `"unavailable": {"reason", "issue"}` (plus
+  `fixedSinceFirmwareVersion` when set);
 - the page shows it as unavailable, never picks it by default, and when it is
   selected explains why under the picker, links the issue and keeps the submit
   button off;
 - `POST /api/builds` refuses it with `400`, naming the reason and the issue.
 
-It applies to every version of that firmware. Remove the entry once a release
-fixes the board and a real build of it succeeds; older tags of that firmware
-are then offered again for it, so say in the issue which tags stay broken.
+```json
+"unavailableBoards": {
+  "t-echo": {
+    "reason": "firmware_too_big",
+    "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+    "fixedSinceFirmwareVersion": "2.8.105"
+  }
+}
+```
+
+Without `fixedSinceFirmwareVersion` the entry applies to every version of that
+firmware. With it (`x.y.z`, no `v`), only versions below it are blocked,
+compared the same way as the other version gates (the tag's `x.y.z`, or
+`version.properties` for a branch); a version that does not parse counts as
+blocked. On a blocked version the page also says from which version the board
+builds: naming its tag when that version is already offered, or as "not out
+yet" when it is not.
+
+Set `fixedSinceFirmwareVersion` only to a version announced as fixing the
+board. Before or right after it is released, run one real build of each board
+on it: if one still fails, raise the version (or drop the field) so the page
+stops offering a version that does not work. Remove the entry once every
+offered version builds the board.
 
 Reason codes the page translates (`device.unavailable.<code>` in
 `static/i18n.js`): `firmware_too_big`, the image does not fit in the board's
 flash. A new code needs an ES and EN text there and in
 `UNAVAILABLE_REASONS` in `board_catalog.py`.
 
-Current entries: Jentastic, Heltec Mesh Node T096 and Heltec Mesh Pocket
-(5000 and 10000 mAh, with and without InkHUD), which overflow flash
-([#3](https://github.com/lazynoda/meshtastic-builder/issues/3)).
+Current entries: Jentastic, Heltec Mesh Node T096, Heltec Mesh Pocket (5000
+and 10000 mAh, with and without InkHUD) and LILYGO T-Echo, which overflow
+flash on v2.8.104 and earlier
+([#3](https://github.com/lazynoda/meshtastic-builder/issues/3)). `t-echo-inkhud`
+(~44 KB over) is listed too, although the builder does not offer it as a board
+today: its env declares no display name of its own. All carry
+`fixedSinceFirmwareVersion: "2.8.105"`, the release announced to fit them.
 
 ## Adding a firmware
 

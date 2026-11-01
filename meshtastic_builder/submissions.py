@@ -44,7 +44,7 @@ def create_build_submission(config: Config, payload: dict[str, Any]) -> dict[str
     mui = payload.get("mui", False)
     if not isinstance(mui, bool):
         raise ValueError("El campo mui debe ser true o false.")
-    device = get_device_for_build(config, source, version["sha"], device_id, mui=mui)
+    device = get_device_for_build(config, source, version["sha"], device_id, mui=mui, version=version["version"])
     # Version gates (patches, channel count, code options) compare x.y.z, which
     # for a branch comes from its version.properties rather than from a tag.
     gate_version = version["version"]

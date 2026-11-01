@@ -17,9 +17,17 @@ All notable changes to this project are documented here. The format follows
   with the position and times (counts only, nothing about other builds).
 - A failed build says the error will be looked into, and links to
   [@lazynoda](https://t.me/lazynoda) on Telegram for questions.
+- A board a firmware cannot build can be marked unavailable only below a given
+  version (`fixedSinceFirmwareVersion` in `data/firmwares.json`). On an older
+  version the page says from which version it builds, or that the version is
+  not out yet.
 
 ### Changed
 
+- Jentastic: LILYGO T-Echo is marked unavailable too (the firmware overflows
+  flash by ~76 KB on v2.8.104), and every Jentastic entry is lifted from
+  v2.8.105 on, the release that fits them
+  ([#3](https://github.com/lazynoda/meshtastic-builder/issues/3)).
 - A build that does not fit in the device's flash no longer tells the user to
   drop options or pick another device: the size comes from the firmware, not
   from their settings.

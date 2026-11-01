@@ -20,6 +20,9 @@ const DICT = {
     "device.unavailable": "no disponible",
     "device.unavailableHint": "No disponible con {firmware} por ahora: {reason}. Estamos trabajando en ello ({issue}). Mientras tanto puedes compilarlo con Meshtastic Oficial.",
     "device.unavailable.firmware_too_big": "el firmware no cabe en la memoria flash de esta placa",
+    "device.unavailableFixedHint": "No disponible con {firmware} {version}: {reason}. Funciona desde {firmware} {tag}.",
+    "device.unavailableComingHint":
+      "No disponible con {firmware} {version}: {reason}. Funcionara a partir de la version {fixed}, que aun no ha salido ({issue}). Mientras tanto puedes compilarlo con Meshtastic Oficial.",
 
     "step2.title": "Nodo",
     "step2.longName": "Nombre largo",
@@ -311,6 +314,9 @@ const DICT = {
     "device.unavailable": "unavailable",
     "device.unavailableHint": "Not available with {firmware} for now: {reason}. We are working on it ({issue}). Meanwhile you can build it with Meshtastic Oficial.",
     "device.unavailable.firmware_too_big": "the firmware does not fit in this board's flash memory",
+    "device.unavailableFixedHint": "Not available with {firmware} {version}: {reason}. It works from {firmware} {tag}.",
+    "device.unavailableComingHint":
+      "Not available with {firmware} {version}: {reason}. It will work from version {fixed}, which is not out yet ({issue}). Meanwhile you can build it with Meshtastic Oficial.",
 
     "step2.title": "Node",
     "step2.longName": "Long name",

@@ -615,8 +615,20 @@ function syncWifiAvailability() {
   $("wifiUnsupported").hidden = supported;
 }
 
-// A board the firmware cannot build yet: say why under the picker and keep the
-// submit button off. The server refuses it too, for API clients.
+// The oldest offered version of this firmware that builds a board fixed in
+// `fixedSince` (x.y.z), so the hint can name it. Null when none is offered yet
+// (not released, or not in the cached tag list).
+function firstFixedVersion(fixedSince) {
+  if (!fixedSince || selectedFirmware()?.versioning === "branch") return null;
+  const fixed = state.versions.filter((version) => versionAtLeast(version.version || version.tag, fixedSince));
+  fixed.sort((a, b) => (versionAtLeast(a.version || a.tag, b.version || b.tag) ? 1 : -1));
+  return fixed[0] || null;
+}
+
+// A board the firmware cannot build at this version: say why under the picker
+// and keep the submit button off. The server refuses it too, for API clients.
+// When a later version builds it, say so: by its tag if it is already offered,
+// as "not out yet" otherwise.
 function syncDeviceAvailability() {
   const picker = $("deviceId");
   const info = picker ? state.unavailableDevices[picker.value] : null;
@@ -625,14 +637,25 @@ function syncDeviceAvailability() {
   if (info) {
     const firmware = selectedFirmware();
     const reason = t(`device.unavailable.${info.reason}`);
-    hint.innerHTML = t("device.unavailableHint", {
+    const vars = {
       firmware: escapeHtml(firmware ? firmware.name : ""),
+      version: escapeHtml($("firmwareTag").value),
       reason: escapeHtml(reason === `device.unavailable.${info.reason}` ? info.reason : reason),
       issue: `<a href="${escapeHtml(info.issue)}" target="_blank" rel="noreferrer">${escapeHtml(info.issue.replace(/^https:\/\/github\.com\//, ""))}</a>`,
-    });
+      fixed: escapeHtml(info.fixedSinceFirmwareVersion || ""),
+    };
+    const fixedVersion = firstFixedVersion(info.fixedSinceFirmwareVersion);
+    if (fixedVersion) {
+      hint.innerHTML = t("device.unavailableFixedHint", { ...vars, tag: escapeHtml(fixedVersion.tag) });
+    } else if (info.fixedSinceFirmwareVersion) {
+      hint.innerHTML = t("device.unavailableComingHint", vars);
+    } else {
+      hint.innerHTML = t("device.unavailableHint", vars);
+    }
   }
   $("submitBuild").disabled = Boolean(info);
 }
+
 
 // The Web Flasher's "Meshtastic UI" switch: only for boards whose firmware has a
 // -tft build. Unticked and hidden for any other board, so it never leaks into a submit.

@@ -172,9 +172,18 @@ def _devices_for(config: Config, source: FirmwareSource, sha: str) -> tuple[list
 
 
 def get_device_for_build(
-    config: Config, source: FirmwareSource, sha: str, device_id: str, *, mui: bool = False
+    config: Config,
+    source: FirmwareSource,
+    sha: str,
+    device_id: str,
+    *,
+    mui: bool = False,
+    version: str | None = None,
 ) -> Device:
-    """The board to build. With `mui`, its Meshtastic UI env, labelled as such."""
+    """The board to build. With `mui`, its Meshtastic UI env, labelled as such.
+
+    `version` is the x.y.z being built: a board can be unavailable on some
+    versions of a firmware and fine on later ones."""
     devices, _from_firmware = devices_for(config, source, sha)
     for device in devices:
         if device.id == device_id:
@@ -182,12 +191,18 @@ def get_device_for_build(
                 if not device.mui_env:
                     raise ValueError(f"{device.label} no tiene Meshtastic UI en esta version de {source.name}.")
                 device = replace(device, platformio_env=device.mui_env, label=f"{device.label} (Meshtastic UI)")
-            unavailable = source.unavailable(device.platformio_env)
+            unavailable = source.unavailable(device.platformio_env, version)
             if unavailable is not None:
                 # Listed, so users can read why, but never queued: it cannot succeed.
+                where = f"con {source.name} {version}" if version else f"con {source.name} por ahora"
+                fixed = (
+                    f" Funciona a partir de la version {unavailable.fixed_since}."
+                    if unavailable.fixed_since
+                    else ""
+                )
                 raise ValueError(
-                    f"{device.label} no esta disponible con {source.name} por ahora "
-                    f"({UNAVAILABLE_REASONS.get(unavailable.reason, unavailable.reason)}). "
+                    f"{device.label} no esta disponible {where} "
+                    f"({UNAVAILABLE_REASONS.get(unavailable.reason, unavailable.reason)}).{fixed} "
                     f"Se esta trabajando en ello: {unavailable.issue}"
                 )
             return device
