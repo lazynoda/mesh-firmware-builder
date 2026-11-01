@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- The build page shows how many builds are ahead of a queued one, and an
+  estimate of when it will be ready. The estimate is the median of recent
+  successful builds of the same board, falling back to its chip family. A
+  running build shows the time left, or "taking longer than usual". The time is
+  hidden when the queue looks stuck. Nothing is shown with nobody ahead.
+- `GET /api/builds/<token>` and `POST /api/builds` return a `queue` object
+  with the position and times (counts only, nothing about other builds).
+
 ## [1.3.1] - 2026-10-29
 
 ### Fixed

@@ -78,6 +78,8 @@ const state = {
   codeOptionsNative: false,
   maxChannels: 3,
   lastBuild: null,
+  // Queue position and time estimate from the server, refreshed with every poll.
+  lastQueue: null,
   lastDownloadUrl: null,
   lastBuildUrl: null,
 };
@@ -1457,13 +1459,45 @@ function statusIconHtml(status) {
   );
 }
 
-function renderBuildStatus(status) {
+function renderBuildStatus(status, queue = null) {
   const el = $("buildStatus");
   // The column is CHECK-constrained server side, but this string ends up in a
   // class name and next to innerHTML, so only render states we know.
   const known = Object.hasOwn(STATUS_ICONS, status) ? status : "queued";
   el.dataset.state = known;
-  el.innerHTML = `${statusIconHtml(known)}<span>${escapeHtml(t(`buildStatus.${known}`))}</span>`;
+  const detail = queueDetail(known, queue);
+  el.innerHTML =
+    `${statusIconHtml(known)}<span>${escapeHtml(t(`buildStatus.${known}`))}</span>` +
+    (detail ? `<span class="queue-info">${escapeHtml(detail)}</span>` : "");
+}
+
+// "~25 min", "~1 h 05 min", "<1 min". Rounded up: an estimate that runs out
+// before the build does reads worse than one that is a minute pessimistic.
+function formatDuration(seconds) {
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 1) return t("queue.underMinute");
+  if (minutes < 60) return `~${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return `~${hours} h ${String(minutes % 60).padStart(2, "0")} min`;
+}
+
+// Nothing for a build with nobody ahead: the worker picks it up within seconds.
+// No time when the server says the queue looks stuck (remainingSeconds null).
+function queueDetail(status, queue) {
+  if (!queue || typeof queue !== "object") return "";
+  const remaining = Number.isFinite(queue.remainingSeconds) ? queue.remainingSeconds : null;
+  if (status === "queued") {
+    const ahead = Number.isInteger(queue.ahead) ? queue.ahead : 0;
+    if (ahead < 1) return "";
+    const parts = [t(ahead === 1 ? "queue.aheadOne" : "queue.ahead", { n: ahead })];
+    if (remaining !== null) parts.push(t("queue.readyIn", { time: formatDuration(remaining) }));
+    return parts.join(" · ");
+  }
+  if (status === "running") {
+    if (queue.overrun) return t("queue.overrun");
+    if (remaining !== null) return t("queue.remaining", { time: formatDuration(remaining) });
+  }
+  return "";
 }
 
 // The advanced options are not userPrefs keys: the server expands them into these
@@ -1655,6 +1689,7 @@ async function submitBuild(event) {
       body: JSON.stringify(payload),
     });
     history.replaceState(null, "", `/build/${encodeURIComponent(result.build.token)}`);
+    state.lastQueue = result.queue ?? null;
     showBuild(result.build, result.downloadUrl, result.buildUrl);
     startPolling(result.build.token);
     setStatusKey("status.queued");
@@ -1681,7 +1716,7 @@ function showBuild(build, downloadUrl = null, buildUrl = null) {
   if (downloadUrl) state.lastDownloadUrl = downloadUrl;
   if (buildUrl) state.lastBuildUrl = buildUrl;
   $("result").hidden = false;
-  renderBuildStatus(build.status);
+  renderBuildStatus(build.status, state.lastQueue);
   $("buildNode").textContent = build.ownerLongName || "-";
   $("buildShortName").textContent = build.ownerShortName || "-";
   $("buildDevice").textContent = build.deviceLabel || state.deviceLabels?.[build.deviceId] || build.deviceId;
@@ -1742,7 +1777,8 @@ function startPolling(token) {
   if (state.pollTimer) clearInterval(state.pollTimer);
   state.pollTimer = setInterval(async () => {
     try {
-      const { build } = await fetchJson(`/api/builds/${token}`);
+      const { build, queue } = await fetchJson(`/api/builds/${token}`);
+      state.lastQueue = queue ?? null;
       showBuild(build);
       // A dropped poll is normal on a phone or while a build pins the host, and
       // without this the error sticks for good while polling carries on fine.
@@ -1758,7 +1794,8 @@ function startPolling(token) {
 
 async function loadExistingBuild(token) {
   setStatusKey("status.loadingBuild");
-  const { build } = await fetchJson(`/api/builds/${encodeURIComponent(token)}`);
+  const { build, queue } = await fetchJson(`/api/builds/${encodeURIComponent(token)}`);
+  state.lastQueue = queue ?? null;
   showBuild(build);
   if (!["succeeded", "failed", "expired"].includes(build.status)) {
     startPolling(build.token);

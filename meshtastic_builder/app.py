@@ -24,6 +24,7 @@ from .firmware import (
     resolve_supported_version,
 )
 from .jsonc import JsoncValidationError
+from .queue_eta import queue_view
 from .security import validate_public_token
 from .submissions import create_build_submission
 
@@ -158,7 +159,7 @@ class MeshtasticBuilderHandler(BaseHTTPRequestHandler):
                 row = get_build_by_token(self.config, token)
                 if row is None:
                     return self.error_response(HTTPStatus.NOT_FOUND, "Build no encontrado.")
-                return self.json_response({"build": public_build_view(row)})
+                return self.json_response({"build": public_build_view(row), "queue": queue_view(self.config, row)})
             if path.startswith("/download/"):
                 token = validate_public_token(path.removeprefix("/download/"))
                 return self.serve_download(token, send_body=send_body)
@@ -181,6 +182,7 @@ class MeshtasticBuilderHandler(BaseHTTPRequestHandler):
                 return self.json_response(
                     {
                         "build": submission["public"],
+                        "queue": queue_view(self.config, submission["row"]),
                         "buildUrl": submission["buildUrl"],
                         "statusUrl": submission["statusUrl"],
                         "downloadUrl": submission["downloadUrl"],

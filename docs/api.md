@@ -271,6 +271,34 @@ is the only way back to the build.
 
 Returns public build status. It never returns the full `userPrefs.jsonc`.
 
+The response also carries `queue`, which is `null` once the build has finished
+(`succeeded`, `failed`, `expired`). For a queued build:
+
+```json
+{"ahead": 2, "estimateSeconds": 420, "estimateBasis": "board", "remainingSeconds": 2160}
+```
+
+- `ahead`: builds the worker will finish before this one: the running build
+  plus every build queued earlier (same `created_at, id` order the worker
+  claims in). There is one worker, so builds run one at a time.
+- `estimateSeconds`: how long this build itself should take. It is the median
+  of the last 10 successful builds of the same PlatformIO environment. With
+  none, the median of the same chip family, then of every board, then 15 min.
+  `estimateBasis` says which one (`board`, `family`, `all`, `default`). Failed
+  builds never count: they stop early.
+- `remainingSeconds`: until this build is done: what is left of the running
+  build (never negative), plus the estimate of every build ahead, plus its own.
+  It is `null` when the queue looks stuck: the running build has taken more
+  than twice its estimate, or builds have waited more than 5 minutes with
+  nothing running.
+
+For a running build: `ahead` 0, `estimateSeconds`, `estimateBasis`,
+`elapsedSeconds`, `remainingSeconds` (0 once past the estimate) and `overrun`
+(true once past it).
+
+Only counts and times are returned, never which boards or whose builds are
+ahead. `POST /api/builds` returns the same `queue` object for the new build.
+
 ## `GET /download/<token>`
 
 Downloads the ZIP when:

@@ -1035,6 +1035,7 @@ input[type="checkbox"] {
 
 .build-status {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   word-break: normal;
@@ -1067,6 +1068,16 @@ input[type="checkbox"] {
 .build-status[data-state="expired"],
 .build-status[data-state="queued"] {
   color: var(--warn);
+}
+
+/* Queue position and estimate next to the state, quieter than the state itself. */
+.queue-info {
+  color: var(--muted);
+}
+
+.queue-info::before {
+  content: "·";
+  margin-right: 8px;
 }
 
 @keyframes status-spin {

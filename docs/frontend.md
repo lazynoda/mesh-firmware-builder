@@ -68,6 +68,21 @@ shows that URL as its headline with a copy button. Nothing else records the
 build for the user, so the panel says so explicitly. On load, a `build`
 parameter fetches that build and resumes polling if it is still running.
 
+While the build is queued or running, the status line also shows its place in
+the queue and a time estimate, from the `queue` object of
+`GET /api/builds/<token>` (see [api.md](api.md)), refreshed on every 5-second
+poll:
+
+- queued with builds ahead: "2 por delante · lista en ~36 min";
+- queued with nobody ahead: nothing extra, because the worker claims it within
+  seconds;
+- running: "quedan ~4 min", then "tardando mas de lo habitual" once past the
+  estimate;
+- when the server returns `remainingSeconds: null` (queue looks stuck), only
+  the position is shown, with no time.
+
+Times are rounded up to the minute and prefixed with `~`.
+
 ## Version Gating
 
 Two independent mechanisms keep the form honest across firmware versions:

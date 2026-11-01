@@ -204,6 +204,13 @@ const DICT = {
     "buildStatus.failed": "Fallida",
     "buildStatus.expired": "Caducada",
 
+    "queue.ahead": "{n} por delante",
+    "queue.aheadOne": "1 por delante",
+    "queue.readyIn": "lista en {time}",
+    "queue.remaining": "quedan {time}",
+    "queue.overrun": "tardando mas de lo habitual",
+    "queue.underMinute": "<1 min",
+
     "error.noVersions": "No hay versiones soportadas en cache.",
     "error.template": "No se pudo cargar userPrefs.jsonc.",
     "error.longName": "El nombre largo no puede superar {bytes} bytes en esta version de firmware: el nodo lo cortaria.",
@@ -483,6 +490,13 @@ const DICT = {
     "buildStatus.succeeded": "Completed",
     "buildStatus.failed": "Failed",
     "buildStatus.expired": "Expired",
+
+    "queue.ahead": "{n} ahead",
+    "queue.aheadOne": "1 ahead",
+    "queue.readyIn": "ready in {time}",
+    "queue.remaining": "{time} left",
+    "queue.overrun": "taking longer than usual",
+    "queue.underMinute": "<1 min",
 
     "error.noVersions": "No supported versions in cache.",
     "error.template": "Could not load userPrefs.jsonc.",
