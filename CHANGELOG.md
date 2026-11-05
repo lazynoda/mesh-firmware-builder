@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Versions come from published GitHub releases, not bare tags, and only when
+  the tag reads `vX.Y.Z`, `vX.Y.Z.<commit>` or `vX.Y.Z-<pre-release>`. Tags in
+  other shapes (`rc-v2.8.201-003`) were offered before and compared as old
+  firmware: advanced options refused, 3 channels, 39-byte long name.
+- Tags of the same version are ordered by release date instead of tag text, so
+  a re-release (`v2.8.2.d5f1619` after `v2.8.2.4c89b69`) and `-rc.10` after
+  `-rc.9` come first. "Works from version X" hints use the same order.
+
+### Added
+
+- Withdrawn releases (upstream's "(Revoked)") stay selectable, marked as
+  revoked and muted in the list, are never the default pick, and name the release that replaces them.
+  `GET /api/firmware-versions` returns `revoked`.
+
+### Upgrading
+
+- The `firmware_versions` table gains a `revoked` column on start. Back up the
+  database first, then run `refresh-versions` once, so tags without a release
+  are retired and release dates and revoked marks are filled in.
+
 ## [1.4.0] - 2026-11-01
 
 ### Added
@@ -363,6 +387,7 @@ First tagged release: the version running on
 
 - AGPL-3.0-only. The firmware patches stay under GPL-3.0.
 
+[Unreleased]: https://github.com/lazynoda/meshtastic-builder/compare/v1.4.0...HEAD
 [1.4.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/lazynoda/meshtastic-builder/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.2.5...v1.3.0

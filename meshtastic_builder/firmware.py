@@ -80,6 +80,69 @@ def tags_url(config: Config, source: FirmwareSource) -> str:
     return f"https://api.github.com/repos/{source.full_name}/tags?per_page=100"
 
 
+def releases_url(source: FirmwareSource) -> str:
+    return f"https://api.github.com/repos/{source.full_name}/releases?per_page=100"
+
+
+# What a tag must look like to be offered: `vX.Y.Z`, then nothing, `.<commit>`
+# (upstream's `v2.8.2.d5f1619`) or a SemVer pre-release `-<id>` (`v2.8.201-rc.3`).
+# The version gates read the leading x.y.z, so anything else would be compared
+# as "old firmware" (advanced options refused, 3 channels, 39-byte long name).
+TAG_RE = re.compile(r"^v\d+\.\d+\.\d+(?:\.[0-9a-f]{7,40}|-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$")
+
+# Upstream does not delete a withdrawn release: it appends "(Revoked)" to its
+# title and publishes a new one. The title is the only place that says so.
+_REVOKED_RE = re.compile(r"\brevoked\b", re.IGNORECASE)
+
+
+def valid_tag(tag: str) -> bool:
+    return len(tag) <= 80 and TAG_RE.match(tag) is not None
+
+
+def version_sort_key(item: dict[str, Any]) -> tuple[tuple[int, int, int], str, str]:
+    """Newest first when sorted in reverse.
+
+    The x.y.z decides, compared as numbers (2.8.105 > 2.8.99). Tags of the same
+    x.y.z (a re-release `v2.8.2.4c89b69` / `v2.8.2.d5f1619`, `-rc.9` / `-rc.10`)
+    are ordered by release date, not by the tag text. The date never decides
+    across versions: a 2.7 hotfix published after 2.8.0 is still older.
+    """
+    tag = str(item.get("tag") or "")
+    return (parse_version(tag) or (0, 0, 0), str(item.get("published_at") or ""), tag)
+
+
+def _paged(url: str | None, max_pages: int) -> tuple[list[dict[str, Any]], bool]:
+    """Every item of a paginated GitHub list, and whether the last page was reached."""
+    items: list[dict[str, Any]] = []
+    pages = 0
+    while url and pages < max_pages:
+        raw, headers = _http_get(url)
+        payload = json.loads(raw)
+        if not isinstance(payload, list):
+            raise FirmwareLookupError("La respuesta de GitHub no es una lista.")
+        items.extend(item for item in payload if isinstance(item, dict))
+        pages += 1
+        url = _next_link(headers.get("Link"))
+    return items, url is None
+
+
+def _published_releases(config: Config, source: FirmwareSource) -> tuple[dict[str, dict[str, Any]], bool]:
+    """tag -> {name, published_at, revoked} for the repository's published releases."""
+    items, complete = _paged(releases_url(source), config.github_max_tag_pages)
+    releases: dict[str, dict[str, Any]] = {}
+    for item in items:
+        tag = item.get("tag_name")
+        if not isinstance(tag, str) or not tag or item.get("draft"):
+            continue
+        name = item.get("name") if isinstance(item.get("name"), str) else ""
+        releases[tag] = {
+            "name": name or tag,
+            "published_at": item.get("published_at"),
+            "revoked": bool(_REVOKED_RE.search(name)),
+        }
+    return releases, complete
+
+
 def raw_url(config: Config, source: FirmwareSource, ref: str, path: str) -> str:
     if source.id == DEFAULT_FIRMWARE_ID and path == "userPrefs.jsonc":
         return config.raw_userprefs_url.format(tag=ref)
@@ -105,55 +168,52 @@ def refresh_firmware_versions(
     if source.versioning == VERSIONING_BRANCH:
         return [resolve_branch_head(config, source)]
 
+    # A version is offered only when it is a published release (the author
+    # says "this is for users") and its tag has a format the gates can read.
+    # The commit comes from the tag: a release object does not carry it.
+    releases, releases_complete = _published_releases(config, source)
+    tags, tags_complete = _paged(tags_url(config, source), config.github_max_tag_pages)
+
     versions: list[dict[str, Any]] = []
     seen_tags: set[str] = set()
-    url: str | None = tags_url(config, source)
-    page_count = 0
-    complete = False
-
-    while url and page_count < config.github_max_tag_pages:
-        raw, headers = _http_get(url)
-        payload = json.loads(raw)
-        if not isinstance(payload, list):
-            raise FirmwareLookupError("La respuesta de tags de GitHub no es una lista.")
-
-        for item in payload:
-            tag = item.get("name")
-            sha = (item.get("commit") or {}).get("sha")
-            if not tag or not sha or tag in seen_tags:
-                continue
-            seen_tags.add(tag)
-            supported = (
-                1
-                if config.auto_support_latest_tags <= 0
-                or len(versions) < config.auto_support_latest_tags
-                else 0
-            )
-            versions.append(
-                {
-                    "tag": tag,
-                    "sha": sha,
-                    "release_name": tag,
-                    "published_at": None,
-                    "supported": supported,
-                    "smoke_test_status": "untested",
-                }
-            )
-
-        page_count += 1
-        url = _next_link(headers.get("Link"))
-        complete = url is None
+    for item in tags:
+        tag = item.get("name")
+        sha = (item.get("commit") or {}).get("sha")
+        if not isinstance(tag, str) or not tag or not sha or tag in seen_tags:
+            continue
+        seen_tags.add(tag)
+        release = releases.get(tag)
+        if release is None or not valid_tag(tag):
+            continue
+        supported = (
+            1
+            if config.auto_support_latest_tags <= 0
+            or len(versions) < config.auto_support_latest_tags
+            else 0
+        )
+        versions.append(
+            {
+                "tag": tag,
+                "sha": sha,
+                "release_name": release["name"],
+                "published_at": release["published_at"],
+                "supported": supported,
+                "revoked": 1 if release["revoked"] else 0,
+                "smoke_test_status": "untested",
+            }
+        )
 
     if not versions:
-        raise FirmwareLookupError("GitHub no devolvio tags utilizables.")
+        raise FirmwareLookupError("GitHub no devolvio releases utilizables.")
 
     upsert_firmware_versions(config, versions, firmware_id=source.id)
-    if complete:
-        # A tag the repository deleted (forks do this) must stop being offered:
-        # its commit may no longer be fetchable. Only after reading every page,
-        # or a page cap would retire the oldest tags. Rows stay, unsupported, so
-        # old builds still resolve; re-adding the tag upstream does not revive it.
-        retire_missing_tags(config, source.id, seen_tags)
+    if tags_complete and releases_complete:
+        # A tag that is gone, lost its release or does not have a valid format
+        # stops being offered (its commit may no longer be fetchable). Only
+        # after reading every page of both lists, or a page cap would retire
+        # the oldest ones. Rows stay, unsupported, so old builds still resolve;
+        # a version that comes back needs `set-supported` by hand.
+        retire_missing_tags(config, source.id, {item["tag"] for item in versions})
     return versions
 
 
@@ -211,6 +271,7 @@ def public_version(source: FirmwareSource, version: dict[str, Any]) -> dict[str,
         "firmwareId": source.id,
         "version": firmware_version_of(source, version),
         "branch": source.versioning == VERSIONING_BRANCH,
+        "revoked": bool(version.get("revoked")),
     }
 
 
@@ -234,8 +295,7 @@ def list_versions_with_refresh(
                 )
     versions = list_firmware_versions(config, supported_only=True, firmware_id=source.id)
     # Newest first: rows are stored in insertion order, so tags added by a later refresh would sink to the bottom.
-    # The tag itself breaks ties, so v2.8.104-005 sorts above v2.8.104-001.
-    versions.sort(key=lambda item: (parse_version(item["tag"]) or (0, 0, 0), item["tag"]), reverse=True)
+    versions.sort(key=version_sort_key, reverse=True)
     return [public_version(source, item) for item in versions]
 
 

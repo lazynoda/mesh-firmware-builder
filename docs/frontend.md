@@ -83,6 +83,18 @@ poll:
 
 Times are rounded up to the minute and prefixed with `~`.
 
+## Version selector
+
+Versions arrive newest first from `/api/firmware-versions`. A release with
+`revoked: true` is labelled `step1.revokedLabel` ("(revocada)") and muted in
+the list like an unavailable board (`is-unavailable`, copied from the option's
+class by `skinSelect`), is never picked
+by default (the first non-revoked version is), and selecting it shows
+`#firmwareRevokedHint` under the selector: the later non-revoked release of the
+same or a newer `x.y.z` that replaces it, text only. `compareVersions` orders
+versions by `x.y.z` as numbers, then by `published_at` within the same
+`x.y.z`; the unavailable-board hint uses it too.
+
 ## Version Gating
 
 Two independent mechanisms keep the form honest across firmware versions:

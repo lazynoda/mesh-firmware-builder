@@ -21,11 +21,12 @@ rebuilt with the new key and the existing rows become `meshtastic` rows.
 | `firmware_id` | Firmware source id from `data/firmwares.json`. |
 | `tag` | Git tag (or branch name for branch firmwares). |
 | `sha` | Commit SHA resolved from the tag API. |
-| `release_name` | Display name. |
-| `published_at` | Reserved for richer release metadata. |
+| `release_name` | GitHub release title (the branch's `version.properties` version for a branch firmware). |
+| `published_at` | GitHub release date. Orders tags of the same `x.y.z`. |
 | `supported` | Whether the UI/API may accept this version. |
 | `smoke_test_status` | `untested`, `tested`, etc. |
 | `last_checked_at` | Last tag sync timestamp. |
+| `revoked` | 1 when the release title says it was withdrawn ("(Revoked)"). Added on start to older databases. |
 
 ## `build_requests`
 

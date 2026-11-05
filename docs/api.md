@@ -145,6 +145,10 @@ Optional query:
 - `firmware=<id>`: firmware source, default `meshtastic`.
 - `refresh=1`: force tag refresh.
 
+Only published GitHub releases whose tag reads `vX.Y.Z[.<commit>|-<pre-release>]`
+are listed, newest first (see [firmwares](firmwares.md#how-versions-work)).
+`revoked` is `true` for a release its author withdrew; it can still be built.
+
 Response:
 
 ```json
@@ -159,7 +163,8 @@ Response:
       "tag": "v2.x.y",
       "sha": "commit-sha",
       "release_name": "v2.x.y",
-      "published_at": null,
+      "published_at": "2026-11-04T00:00:00Z",
+      "revoked": false,
       "supported": 1,
       "smoke_test_status": "untested",
       "last_checked_at": "2026-06-12T00:00:00+00:00"

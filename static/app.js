@@ -279,6 +279,7 @@ function chooseComboItem(root, item) {
 // Every <select> on the page gets the device picker's look. The native select
 // stays in the DOM, hidden, as the .combo-value: code keeps reading .value,
 // replacing its options and toggling .disabled, and the skin follows along.
+// An option's class is copied onto its list item (is-unavailable mutes it).
 // Short lists open as a plain menu; long ones can be filtered by typing.
 const COMBO_FILTER_MIN_OPTIONS = 9;
 
@@ -315,7 +316,7 @@ function skinSelect(select) {
     list.innerHTML = Array.from(select.options)
       .map(
         (option) =>
-          `<li role="option" data-value="${escapeHtml(option.value)}">${escapeHtml(option.textContent.trim())}</li>`,
+          `<li role="option" data-value="${escapeHtml(option.value)}"${option.className ? ` class="${escapeHtml(option.className)}"` : ""}>${escapeHtml(option.textContent.trim())}</li>`,
       )
       .join("");
     input.readOnly = select.options.length < COMBO_FILTER_MIN_OPTIONS;
@@ -441,6 +442,21 @@ function escapeHtml(value) {
 function parseVersion(tag) {
   const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(String(tag).trim());
   return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+}
+
+// Order of two offered versions, oldest first: the x.y.z as numbers, then the
+// release date for tags of the same x.y.z (never the tag text: "-rc.10" sorts
+// before "-rc.9" as text). The date never decides across versions.
+function compareVersions(a, b) {
+  const va = parseVersion(a.version || a.tag) || [0, 0, 0];
+  const vb = parseVersion(b.version || b.tag) || [0, 0, 0];
+  for (let i = 0; i < 3; i += 1) {
+    if (va[i] !== vb[i]) return va[i] - vb[i];
+  }
+  const da = a.published_at || "";
+  const db = b.published_at || "";
+  if (da !== db) return da < db ? -1 : 1;
+  return 0;
 }
 
 function versionAtLeast(tag, minimum) {
@@ -622,8 +638,10 @@ function syncWifiAvailability() {
 // (not released, or not in the cached tag list).
 function firstFixedVersion(fixedSince) {
   if (!fixedSince || selectedFirmware()?.versioning === "branch") return null;
-  const fixed = state.versions.filter((version) => versionAtLeast(version.version || version.tag, fixedSince));
-  fixed.sort((a, b) => (versionAtLeast(a.version || a.tag, b.version || b.tag) ? 1 : -1));
+  const fixed = state.versions.filter(
+    (version) => !version.revoked && versionAtLeast(version.version || version.tag, fixedSince),
+  );
+  fixed.sort(compareVersions);
   return fixed[0] || null;
 }
 
@@ -882,13 +900,48 @@ function renderVersionSelect() {
   }
   const previous = select.value;
   select.innerHTML = state.versions
-    .map((version) => `<option value="${escapeHtml(version.tag)}">${escapeHtml(version.tag)}</option>`)
+    .map((version) => {
+      const label = version.revoked ? t("step1.revokedLabel", { tag: version.tag }) : version.tag;
+      // Muted in the list like an unavailable board: still selectable.
+      const cls = version.revoked ? ' class="is-unavailable"' : "";
+      return `<option value="${escapeHtml(version.tag)}"${cls}>${escapeHtml(label)}</option>`;
+    })
     .join("");
   if (previous && state.versions.some((version) => version.tag === previous)) {
     select.value = previous;
+  } else {
+    // A withdrawn release is never the default pick, even when it is the newest.
+    const preferred = state.versions.find((version) => !version.revoked) || state.versions[0];
+    if (preferred) select.value = preferred.tag;
   }
   select.disabled = false;
   hint.hidden = true;
+  syncRevokedHint();
+}
+
+// The release that replaces a withdrawn one: the oldest offered, not withdrawn
+// version at or above its x.y.z (v2.8.2.4c89b69 -> v2.8.2.d5f1619, v2.8.0 -> v2.8.1).
+function replacementFor(revoked) {
+  const current = revoked.version || revoked.tag;
+  const candidates = state.versions.filter(
+    (version) => !version.revoked && versionAtLeast(version.version || version.tag, current),
+  );
+  // Same x.y.z re-released: only a later release replaces it, not an earlier one.
+  const later = candidates.filter((version) => compareVersions(version, revoked) > 0);
+  later.sort(compareVersions);
+  return later[0] || null;
+}
+
+// Text only, like the unavailable-board hint: the version picker is right above.
+function syncRevokedHint() {
+  const hint = $("firmwareRevokedHint");
+  const version = selectedFirmware()?.versioning === "branch" ? null : selectedVersion();
+  hint.hidden = !version?.revoked;
+  if (!version?.revoked) return;
+  const firmware = selectedFirmware();
+  const replacement = replacementFor(version);
+  const vars = { firmware: firmware ? firmware.name : "", tag: replacement ? replacement.tag : "" };
+  hint.textContent = t(replacement ? "step1.revokedHint" : "step1.revokedHintNoReplacement", vars);
 }
 
 async function onFirmwareChange() {
@@ -899,6 +952,7 @@ async function onFirmwareChange() {
 }
 
 async function onFirmwareTagChange() {
+  syncRevokedHint();
   populateStaticSelects(selectedGateVersion());
   syncAdvancedAvailability();
   await Promise.all([loadTemplate(), loadDevices()]);

@@ -867,7 +867,8 @@ input[type="checkbox"] {
   color: var(--muted);
 }
 
-.device-unavailable {
+.device-unavailable,
+.version-revoked {
   display: block;
   margin-top: 6px;
   text-align: center;

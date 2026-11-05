@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS firmware_versions (
   supported INTEGER NOT NULL DEFAULT 1,
   smoke_test_status TEXT NOT NULL DEFAULT 'untested',
   last_checked_at TEXT NOT NULL,
+  revoked INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (firmware_id, tag)
 );
 """
@@ -143,6 +144,9 @@ def initialize_database(config: Config | None = None) -> None:
     with connection(config) as conn:
         _migrate_firmware_versions(conn)
         conn.executescript(SCHEMA)
+        version_columns = {row[1] for row in conn.execute("PRAGMA table_info(firmware_versions)")}
+        if "revoked" not in version_columns:
+            conn.execute("ALTER TABLE firmware_versions ADD COLUMN revoked INTEGER NOT NULL DEFAULT 0")
         columns = {row[1] for row in conn.execute("PRAGMA table_info(build_requests)")}
         if "code_options" not in columns:
             conn.execute("ALTER TABLE build_requests ADD COLUMN code_options TEXT")
@@ -186,15 +190,17 @@ def upsert_firmware_versions(
         conn.executemany(
             """
             INSERT INTO firmware_versions
-              (firmware_id, tag, sha, release_name, published_at, supported, smoke_test_status, last_checked_at)
+              (firmware_id, tag, sha, release_name, published_at, supported, smoke_test_status, last_checked_at,
+               revoked)
             VALUES
               (:firmware_id, :tag, :sha, :release_name, :published_at, :supported, :smoke_test_status,
-               :last_checked_at)
+               :last_checked_at, :revoked)
             ON CONFLICT(firmware_id, tag) DO UPDATE SET
               sha = excluded.sha,
               release_name = excluded.release_name,
               published_at = excluded.published_at,
-              last_checked_at = excluded.last_checked_at
+              last_checked_at = excluded.last_checked_at,
+              revoked = excluded.revoked
             """,
             [
                 {
@@ -206,6 +212,7 @@ def upsert_firmware_versions(
                     "supported": int(item.get("supported", 1)),
                     "smoke_test_status": item.get("smoke_test_status", "untested"),
                     "last_checked_at": checked_at,
+                    "revoked": int(item.get("revoked", 0)),
                 }
                 for item in versions
             ],
@@ -238,7 +245,7 @@ def list_firmware_versions(
         rows = conn.execute(
             f"""
             SELECT firmware_id, tag, sha, release_name, published_at, supported, smoke_test_status,
-                   last_checked_at
+                   last_checked_at, revoked
             FROM firmware_versions
             WHERE firmware_id = ? {where}
             ORDER BY rowid ASC
@@ -258,7 +265,7 @@ def get_firmware_version(
         row = conn.execute(
             """
             SELECT firmware_id, tag, sha, release_name, published_at, supported, smoke_test_status,
-                   last_checked_at
+                   last_checked_at, revoked
             FROM firmware_versions
             WHERE firmware_id = ? AND tag = ?
             """,

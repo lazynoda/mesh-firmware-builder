@@ -66,6 +66,8 @@ def fake_github(url, timeout=15):
         return json.dumps({"truncated": False, "tree": tree}), {}
     if url == f"https://raw.githubusercontent.com/lazynoda/meshtastic-firmware/{NODASTIC_SHA}/variants/diy/e28/platformio.ini":
         return BOARD_INI, {}
+    if url.startswith("https://api.github.com/repos/derpyspike/jentastic/releases"):
+        return json.dumps([{"tag_name": "v2.8.104", "name": "v2.8.104", "published_at": "2026-10-21T00:00:00Z"}]), {}
     if url.startswith("https://api.github.com/repos/derpyspike/jentastic/tags"):
         return json.dumps([{"name": "v2.8.104", "commit": {"sha": "j" * 40}}]), {}
     if url == "https://api.github.com/repos/lazynoda/meshtastic-firmware/commits/nodastic":
@@ -268,6 +270,8 @@ class VersionTests(unittest.TestCase):
             state = {"page": "before"}
 
             def github(url, timeout=15):
+                if "/releases" in url:
+                    return json.dumps([{"tag_name": i["name"], "name": i["name"]} for i in pages[state["page"]]]), {}
                 return json.dumps(pages[state["page"]]), {}
 
             with patch("meshtastic_builder.firmware._http_get", github):
@@ -281,17 +285,19 @@ class VersionTests(unittest.TestCase):
     def test_a_page_cap_never_retires_tags(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = replace(temp_config(Path(tmp)), github_max_tag_pages=1)
-            upsert_firmware_versions(config, [{"tag": "v-old", "sha": "o"}], firmware_id="jentastic")
+            upsert_firmware_versions(config, [{"tag": "v2.8.103", "sha": "o"}], firmware_id="jentastic")
 
             def github(url, timeout=15):
+                if "/releases" in url:
+                    return json.dumps([{"tag_name": "v2.8.105", "name": "v2.8.105"}]), {}
                 return (
-                    json.dumps([{"name": "v-new", "commit": {"sha": "n" * 40}}]),
+                    json.dumps([{"name": "v2.8.105", "commit": {"sha": "n" * 40}}]),
                     {"Link": '<https://api.github.test/tags?page=2>; rel="next"'},
                 )
 
             with patch("meshtastic_builder.firmware._http_get", github):
                 list_versions_with_refresh(config, firmware_id="jentastic", force_refresh=True)
-            self.assertEqual(get_firmware_version(config, "v-old", "jentastic")["supported"], 1)
+            self.assertEqual(get_firmware_version(config, "v2.8.103", "jentastic")["supported"], 1)
 
     def test_version_properties_parsing(self):
         self.assertEqual(parse_version_properties("[VERSION]  \nmajor = 2\nminor = 8\nbuild = 104\n"), "2.8.104")

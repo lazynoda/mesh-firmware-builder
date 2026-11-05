@@ -43,8 +43,25 @@ Without the file the builder offers upstream Meshtastic only.
 
 - **Tags.** Each firmware keeps its own tag cache in SQLite
   (`firmware_versions`, keyed by firmware and tag), refreshed from the GitHub
-  tags API like upstream's. The admin commands take `--firmware <id>`, e.g.
+  releases and tags APIs. A version is offered only when:
+  - it is a **published GitHub release** (drafts and bare tags are skipped);
+  - its tag reads `vX.Y.Z`, optionally followed by `.<commit>` (upstream's
+    `v2.8.2.d5f1619`) or a SemVer pre-release `-<id>` (`v2.8.201-rc.3`). The
+    version gates read the leading `x.y.z`; a tag in any other shape
+    (`rc-v2.8.201-003`) would be compared as old firmware, so it is skipped.
+
+  The commit comes from the tags API, because a release does not carry it. A
+  version that loses its release or tag is marked unsupported (never deleted),
+  once both lists were read to the last page.
+  The admin commands take `--firmware <id>`, e.g.
   `python -m meshtastic_builder list-versions --firmware jentastic`.
+- **Revoked releases.** Upstream withdraws a release by appending "(Revoked)"
+  to its title and publishing a new one. Those stay selectable, labelled
+  "(revocada)" / "(revoked)", are never the default pick, and selecting one
+  names the later release of the same or a newer version that replaces it.
+- **Order.** Newest first by `x.y.z`, compared as numbers. Tags of the same
+  `x.y.z` (a re-release, `-rc.9` / `-rc.10`) are ordered by release date, never
+  by tag text. The date never decides across versions.
 - **Branch.** The version selector shows `N/A` and is disabled. The server
   resolves the branch head (cached for five minutes) and reads the firmware
   version from that commit's `version.properties`. The build stores the commit
