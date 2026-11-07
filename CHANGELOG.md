@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-11-07
+
+### Changed
+
+- Packages PlatformIO downloads (platforms, toolchains, frameworks, libraries)
+  are kept in a shared volume, so a board that is not prewarmed in the image
+  downloads them once instead of on every build. Only the downloaded archives
+  are shared: each build still installs them into its own throwaway container.
+  The build log shows how many archives the volume holds.
+
+### Added
+
+- `MB_PIO_DOWNLOAD_VOLUME` (Docker named volume for the downloads; empty turns
+  it off).
+
+### Upgrading
+
+- No builder image rebuild: only `docker/build_firmware.sh` changes, so overlay
+  it onto the current image.
+- Set `MB_PIO_DOWNLOAD_VOLUME` in `.env` if you do not use the shipped
+  `compose.yml`, which defaults it to `meshtastic-builder-pio-downloads`, and
+  pass it to the worker in a compose file of your own. Then recreate the worker.
+
 ## [1.5.0] - 2026-11-07
 
 ### Changed
@@ -415,6 +438,7 @@ First tagged release: the version running on
 
 - AGPL-3.0-only. The firmware patches stay under GPL-3.0.
 
+[1.6.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/lazynoda/meshtastic-builder/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.3.1...v1.4.0
