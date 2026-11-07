@@ -69,7 +69,22 @@ docker volume rm meshtastic-builder-ccache
 
 A Compose project prefixes nothing here: the worker passes the name to the
 daemon as is, so dev and prod instances on one host share the cache unless one
-sets another name.
+sets another name. Sharing is safe: ccache reuses an object only when the
+compiler, flags and preprocessed source are identical.
+
+## Shared Package Downloads
+
+PlatformIO's downloaded archives live in the Docker volume named by
+`MB_PIO_DOWNLOAD_VOLUME` (`meshtastic-builder-pio-downloads` in Compose); see
+[Worker And Builder](worker-and-builder.md#shared-package-downloads). Dev and
+prod instances can share it too: archives are filed by URL and checksum. To see
+its size, or to empty it with no build running:
+
+```bash
+docker run --rm -v meshtastic-builder-pio-downloads:/d --entrypoint du \
+  meshtastic-firmware-builder:local -sh /d
+docker volume rm meshtastic-builder-pio-downloads
+```
 
 ## Firmware Version Admin
 

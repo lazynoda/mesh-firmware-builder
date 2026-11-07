@@ -311,17 +311,48 @@ class CompilerCacheTests(unittest.TestCase):
         self.assertNotIn("PLATFORMIO_BUILD_CACHE_DIR", command)
         self.assertNotIn("pio-cache", command)
 
+    def test_download_volume_is_mounted_for_both_transports(self):
+        config = replace(load_config(), ccache_volume="mb-ccache", pio_download_volume="mb-pio-dl")
+        for transport in ("bind", "copy"):
+            with self.subTest(transport=transport):
+                command = captured_command(config, transport)
+                options = command[: command.index("builder:test")]
+                self.assertIn("mb-pio-dl:/pio-downloads", options)
+                self.assertIn("MB_PIO_DOWNLOAD_DIR=/pio-downloads", options)
+                # ccache stays mounted next to it.
+                self.assertIn("mb-ccache:/ccache", options)
+
+    def test_download_volume_never_replaces_the_installed_packages(self):
+        # ESP32 builds rewrite their installed framework for their own board, so
+        # only the download store may be shared, never /opt/platformio itself.
+        config = replace(load_config(), pio_download_volume="mb-pio-dl")
+        command = " ".join(captured_command(config, "bind"))
+        self.assertNotIn(":/opt/platformio", command)
+        self.assertNotIn("PLATFORMIO_CORE_DIR", command)
+
+    def test_no_download_volume_and_bad_names_mount_nothing(self):
+        for volume in ("", "/srv/pio", "../pio", "vol:/opt/platformio"):
+            with self.subTest(volume=volume):
+                config = replace(load_config(), pio_download_volume=volume)
+                self.assertEqual(builder.pio_download_docker_args(config), [])
+                self.assertNotIn("/pio-downloads", " ".join(captured_command(config, "bind")))
+
     def test_config_reads_the_cache_settings(self):
         with patch.dict(os.environ, {"MB_CCACHE_VOLUME": " mb-ccache ", "MB_CCACHE_MAXSIZE": "5G"}):
             config = load_config()
         self.assertEqual(config.ccache_volume, "mb-ccache")
         self.assertEqual(config.ccache_maxsize, "5G")
+        with patch.dict(os.environ, {"MB_PIO_DOWNLOAD_VOLUME": " mb-pio-dl "}):
+            self.assertEqual(load_config().pio_download_volume, "mb-pio-dl")
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("MB_CCACHE_VOLUME", None)
             os.environ.pop("MB_CCACHE_MAXSIZE", None)
             config = load_config()
         self.assertEqual(config.ccache_volume, "")
         self.assertEqual(config.ccache_maxsize, "20G")
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("MB_PIO_DOWNLOAD_VOLUME", None)
+            self.assertEqual(load_config().pio_download_volume, "")
 
 
 if __name__ == "__main__":

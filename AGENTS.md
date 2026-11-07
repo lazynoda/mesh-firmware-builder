@@ -102,6 +102,11 @@ offers. Labels and `family` come from `custom_meshtastic_display_name` and
   Build speed comes from ccache instead (`docker/ccache_wrap.sh`), which caches
   below SCons. A change to it needs a real second build of the same board that
   still ships its `.uf2`/`.factory.bin`, not only the unit tests.
+- Share only PlatformIO's download store (`MB_PIO_DOWNLOAD_VOLUME`), never
+  `/opt/platformio` or its `packages/`: ESP32 boards rebuild their installed
+  framework for themselves, and a shared install hands one board's libraries to
+  the next with no error. See
+  [docs/worker-and-builder.md](docs/worker-and-builder.md#shared-package-downloads).
 - Firmware tags resolve to a commit SHA, stored with the build; the worker
   builds the SHA. Historical tags may need dependencies the image lacks, so do
   not assume every tag builds.

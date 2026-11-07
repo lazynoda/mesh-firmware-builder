@@ -10,6 +10,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -262,6 +263,91 @@ class CcacheWrapTests(unittest.TestCase):
         proc = subprocess.run([BASH, str(WRAP), str(self.packages)], capture_output=True, text=True, env=env)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertFalse(list(self.packages.rglob(".mb-real-bin")))
+
+
+def shared_downloads_block() -> str:
+    text = SCRIPT.read_text(encoding="utf-8")
+    match = re.search(r"\nuse_shared_downloads\(\) \{\n.*?\n\}\n", text, re.S)
+    assert match, "use_shared_downloads not found in build_firmware.sh"
+    return match.group(0)
+
+
+@unittest.skipUnless(Path(BASH).exists(), "bash not available")
+class SharedDownloadsTests(unittest.TestCase):
+    """use_shared_downloads from docker/build_firmware.sh, against temp dirs."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.core = self.tmp / "platformio"
+        self.shared = self.tmp / "shared"
+        # What the image ships: an installed package and a download cache dir.
+        (self.core / "packages" / "toolchain-x").mkdir(parents=True)
+        (self.core / "packages" / "toolchain-x" / "gcc").write_text("installed")
+        (self.core / ".cache" / "downloads").mkdir(parents=True)
+        (self.core / ".cache" / "http").mkdir()
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_block(self, shared=None):
+        env = {**os.environ, "PLATFORMIO_CORE_DIR": str(self.core)}
+        env.pop("MB_PIO_DOWNLOAD_DIR", None)
+        if shared is not None:
+            env["MB_PIO_DOWNLOAD_DIR"] = str(shared)
+        script = "set -euo pipefail\n" + shared_downloads_block() + "use_shared_downloads\necho END\n"
+        return subprocess.run([BASH, "-c", script], capture_output=True, text=True, timeout=30, env=env)
+
+    def test_downloads_go_to_the_shared_dir_and_nothing_else_moves(self):
+        self.shared.mkdir()
+        (self.shared / "a1b2c3").write_bytes(b"archive")
+        proc = self.run_block(self.shared)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("END", proc.stdout)
+        dl = self.core / ".cache" / "downloads"
+        self.assertTrue(dl.is_symlink())
+        self.assertEqual(dl.resolve(), self.shared.resolve())
+        self.assertEqual((dl / "a1b2c3").read_bytes(), b"archive")
+        # Installed packages and the rest of the cache stay in the container.
+        self.assertFalse((self.core / "packages").is_symlink())
+        self.assertEqual((self.core / "packages" / "toolchain-x" / "gcc").read_text(), "installed")
+        self.assertTrue((self.core / ".cache" / "http").is_dir())
+        self.assertIn("1 archives", proc.stdout)
+
+    def test_stale_partial_downloads_are_dropped_and_fresh_ones_kept(self):
+        self.shared.mkdir()
+        old = self.shared / "tmpold123"
+        fresh = self.shared / "tmpnew456"
+        done = self.shared / "d4e5f6"
+        for path in (old, fresh, done):
+            path.write_bytes(b"x")
+        four_hours_ago = time.time() - 4 * 3600
+        os.utime(old, (four_hours_ago, four_hours_ago))
+        os.utime(done, (four_hours_ago, four_hours_ago))
+        proc = self.run_block(self.shared)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertFalse(old.exists())
+        self.assertTrue(fresh.exists())
+        self.assertTrue(done.exists())
+
+    def test_without_a_shared_dir_nothing_changes(self):
+        proc = self.run_block()
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        dl = self.core / ".cache" / "downloads"
+        self.assertTrue(dl.is_dir())
+        self.assertFalse(dl.is_symlink())
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can write anywhere")
+    def test_an_unwritable_shared_dir_costs_speed_not_the_build(self):
+        self.shared.mkdir()
+        self.shared.chmod(0o500)
+        try:
+            proc = self.run_block(self.shared)
+        finally:
+            self.shared.chmod(0o700)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("not writable", proc.stdout)
+        self.assertFalse((self.core / ".cache" / "downloads").is_symlink())
 
 
 if __name__ == "__main__":

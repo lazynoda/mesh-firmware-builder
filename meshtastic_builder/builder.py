@@ -289,7 +289,8 @@ def docker_transport(config: Config) -> str:
 CCACHE_MOUNT = "/ccache"
 # A Docker named volume, never a host path: the daemon may be remote or rootless,
 # where a host path would resolve somewhere else (or nowhere).
-CCACHE_VOLUME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
+VOLUME_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
+CCACHE_VOLUME_RE = VOLUME_NAME_RE
 # ccache's own size syntax: a number with an optional k/M/G/T suffix (Ki/Mi/Gi/Ti
 # for powers of two). Anything else would make ccache refuse every call.
 CCACHE_MAXSIZE_RE = re.compile(r"[0-9]+(\.[0-9]+)?([kKMGT]i?)?")
@@ -319,6 +320,34 @@ def ccache_docker_args(config: Config) -> list[str]:
         "-e",
         f"CCACHE_MAXSIZE={maxsize}",
     ]
+
+
+# PlatformIO's download store: the package archives exactly as fetched (platforms,
+# toolchains, frameworks, libraries), kept by URL + checksum. Shared on purpose
+# instead of the installed packages: ESP32 builds rewrite their installed
+# framework for their own board (custom_sdkconfig), so a shared install would
+# hand one board's rebuilt libraries to the next. Archives are only ever read and
+# unpacked into the build's own container, which is thrown away afterwards.
+PIO_DOWNLOAD_MOUNT = "/pio-downloads"
+
+
+def pio_download_docker_args(config: Config) -> list[str]:
+    """Mount the shared PlatformIO download store, or nothing when it is off."""
+    volume = config.pio_download_volume.strip()
+    if not volume:
+        return []
+    if not VOLUME_NAME_RE.fullmatch(volume):
+        print(
+            f"MB_PIO_DOWNLOAD_VOLUME {volume!r} is not a Docker volume name; downloading packages per build.",
+            file=sys.stderr,
+        )
+        return []
+    return ["-v", f"{volume}:{PIO_DOWNLOAD_MOUNT}", "-e", f"MB_PIO_DOWNLOAD_DIR={PIO_DOWNLOAD_MOUNT}"]
+
+
+def cache_docker_args(config: Config) -> list[str]:
+    """Every shared cache a builder container mounts."""
+    return [*ccache_docker_args(config), *pio_download_docker_args(config)]
 
 
 def package_output(output_dir: Path, final_zip: Path, log: str) -> str:
@@ -366,7 +395,7 @@ def run_docker_build_bind(
         f"{input_dir.resolve()}:/work/input:ro",
         "-v",
         f"{output_dir.resolve()}:/work/output",
-        *ccache_docker_args(config),
+        *cache_docker_args(config),
         config.builder_image,
         *builder_args(build, source),
     ]
@@ -395,7 +424,7 @@ def run_docker_build_copy(
         config.docker_memory,
         "--pids-limit",
         str(config.docker_pids_limit),
-        *ccache_docker_args(config),
+        *cache_docker_args(config),
         config.builder_image,
         *builder_args(build, source),
     ]

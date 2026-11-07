@@ -19,6 +19,7 @@
 - Builds against a remote Docker daemon (`DOCKER_HOST=ssh://...`).
 - ZIP artifact storage.
 - Compiler cache (ccache) shared by builds, in a Docker named volume with a size cap.
+- PlatformIO package downloads shared by builds, in a Docker named volume.
 - Private build URL returned at submit time; no email is requested or sent.
 - 7-day artifact expiry.
 - Unit tests for core contracts.

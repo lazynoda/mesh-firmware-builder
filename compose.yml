@@ -48,6 +48,9 @@ services:
       # the daemon starts, do. Empty turns the compiler cache off.
       MB_CCACHE_VOLUME: ${MB_CCACHE_VOLUME-meshtastic-builder-ccache}
       MB_CCACHE_MAXSIZE: ${MB_CCACHE_MAXSIZE:-20G}
+      # Named Docker volume for PlatformIO's downloaded package archives, shared
+      # by every builder container. Empty turns it off.
+      MB_PIO_DOWNLOAD_VOLUME: ${MB_PIO_DOWNLOAD_VOLUME-meshtastic-builder-pio-downloads}
     volumes:
       - app-data:/data
       # Host path of the Docker socket. Rootless Docker lives at

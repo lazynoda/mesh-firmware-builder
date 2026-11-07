@@ -39,6 +39,7 @@ Configuration is read from environment variables.
 | `MB_DOCKER_PIDS_LIMIT` | `512` | PID limit for firmware builder containers. |
 | `MB_BUILD_TIMEOUT_SECONDS` | `3600` | Per-build timeout. |
 | `MB_CCACHE_VOLUME` | empty (`meshtastic-builder-ccache` in Compose) | Docker named volume mounted into every builder container as its [ccache](worker-and-builder.md#compiler-cache-ccache) directory. A name, never a host path. Empty turns the compiler cache off; an invalid name also turns it off instead of failing builds. |
+| `MB_PIO_DOWNLOAD_VOLUME` | empty (`meshtastic-builder-pio-downloads` in Compose) | Docker named volume for PlatformIO's downloaded package archives, shared by every builder container so a package is downloaded once. Only archives are shared; each build still installs into its own container. See [Shared Package Downloads](worker-and-builder.md#shared-package-downloads). Empty or an invalid name turns it off. |
 | `MB_CCACHE_MAXSIZE` | `20G` | Size cap ccache keeps the cache under, dropping the least recently used objects first. ccache syntax: a number with an optional `k`/`M`/`G`/`T` suffix (`Ki`/`Mi`/`Gi`/`Ti` for powers of two). An invalid value turns the cache off. |
 | `MB_DOCKER_SOCKET` | `/var/run/docker.sock` | Compose only: host path of the Docker socket mounted into the worker. Rootless Docker uses `/run/user/<uid>/docker.sock`. |
 | `MB_STALE_RUNNING_SECONDS` | `7200` | Running jobs older than this are requeued. |

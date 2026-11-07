@@ -185,6 +185,32 @@ enable_ccache() {
   echo "Compiler cache: ${CCACHE_DIR} (max ${CCACHE_MAXSIZE:-ccache default})"
 }
 
+# Shared PlatformIO download store, only when the worker mounted one and set
+# MB_PIO_DOWNLOAD_DIR. Only the archives PlatformIO downloads are shared (kept by
+# URL + checksum, written by an atomic rename once complete). Every package is
+# still unpacked into this container's own /opt/platformio, which some ESP32
+# boards then rewrite for themselves and which is thrown away with the container.
+use_shared_downloads() {
+  local shared="${MB_PIO_DOWNLOAD_DIR:-}" core="${PLATFORMIO_CORE_DIR:-${HOME}/.platformio}" dl
+  if [[ -z "${shared}" ]]; then
+    echo "No shared package downloads; packages missing from the image are downloaded."
+    return 0
+  fi
+  if ! mkdir -p "${shared}" 2>/dev/null || [[ ! -w "${shared}" ]]; then
+    echo "Package downloads: ${shared} is not writable; downloading packages for this build only."
+    return 0
+  fi
+  # A build killed mid-download leaves its temporary file behind (the finished
+  # archive only ever appears by rename). Drop old ones; a running download is
+  # never this old because builds time out sooner.
+  find "${shared}" -maxdepth 1 -type f -name 'tmp*' -mmin +180 -delete 2>/dev/null || true
+  dl="${core}/.cache/downloads"
+  mkdir -p "${core}/.cache"
+  rm -rf "${dl}"
+  ln -s "${shared}" "${dl}"
+  echo "Package downloads: ${shared} ($(find "${shared}" -maxdepth 1 -type f ! -name '*.lock' ! -name usage.db ! -name 'tmp*' | wc -l) archives, $(du -sh "${shared}" 2>/dev/null | cut -f1))"
+}
+
 report_ccache() {
   [[ -n "${CCACHE_STATSLOG:-}" && -s "${CCACHE_STATSLOG}" ]] || return 0
   echo "Compiler cache for this build:"
@@ -245,8 +271,9 @@ fi
 cp "${INPUT_DIR}/userPrefs.jsonc" ./userPrefs.jsonc
 echo "userPrefs.jsonc in place ($(wc -c <./userPrefs.jsonc) bytes)"
 
-phase "compiler cache"
+phase "caches"
 enable_ccache
+use_shared_downloads
 
 phase "compile ${PIO_ENV}"
 # Retry once: pioarduino may replace tool-scons mid-run on the first build of a

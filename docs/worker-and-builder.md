@@ -58,6 +58,8 @@ docker run --rm \
   -v <MB_CCACHE_VOLUME>:/ccache \
   -e CCACHE_DIR=/ccache \
   -e CCACHE_MAXSIZE=<MB_CCACHE_MAXSIZE> \
+  -v <MB_PIO_DOWNLOAD_VOLUME>:/pio-downloads \
+  -e MB_PIO_DOWNLOAD_DIR=/pio-downloads \
   <MB_BUILDER_IMAGE> \
   <firmware-tag> \
   <firmware-sha> \
@@ -130,9 +132,14 @@ Measured on the 2-vCPU ARM64 VM at 1 CPU per build, Jentastic `v2.8.105`:
 | --- | --- | --- | --- | --- |
 | `nrf52_promicro_diy_tcxo` | 7.0 min | 8.8 min | 1.5 min | 2.5 min |
 | `heltec-v4` | ~19.8 min ¹ | 26.0 min | 3.8 min | 7.6 min |
+| `heltec-v3` (not prewarmed) | ~30 min ¹ | 40 min | | 10.1 min ² |
 
 ¹ Median of the production builds of that board and version, same VM and CPU
 limit; not re-measured in the same run.
+
+² With the shared package downloads (next section) already filled. A board
+that is not prewarmed rebuilds its ESP-IDF libraries for itself on every build
+(about 2,900 objects instead of 750); ccache serves those too (99.6% hits).
 
 The first build of a board and version is slower than without the cache (about
 25% here): every object misses, and on a miss ccache preprocesses the file
@@ -153,6 +160,52 @@ Other measurements from the same run:
 The firmware is not bit-for-bit reproducible between two builds of the same
 commit, with or without the cache, so compare builds by what they carry
 (preferences, files), not by hash.
+
+## Shared Package Downloads
+
+Every builder container starts from the image, so a board whose platform,
+toolchain or libraries are not prewarmed downloads them again on every build.
+The worker therefore also mounts the Docker named volume
+`MB_PIO_DOWNLOAD_VOLUME` at `/pio-downloads` and sets `MB_PIO_DOWNLOAD_DIR`.
+`build-firmware` points PlatformIO's download store
+(`/opt/platformio/.cache/downloads`) at it, so each archive is fetched once and
+reused by later builds of any board.
+
+Only the **downloaded archives** are shared, never the installed packages, and
+that is deliberate:
+
+- ESP32 boards with a `custom_sdkconfig` rewrite their installed Arduino
+  framework for themselves ("Reinstall Arduino framework", "Compile Arduino IDF
+  libs for <board>"). Whether a rebuild is needed is decided against a
+  `sdkconfig.defaults` that lives in the image's firmware checkout, so a shared
+  `/opt/platformio` would let the next board link libraries another board
+  rebuilt, with no error. Unpacking into each build's own container, which is
+  thrown away afterwards, rules that out.
+- PlatformIO files each archive under a hash of its URL and checksum, writes
+  it to a temporary file and only renames it into place once complete (verifying
+  the checksum when the source gives one), and serialises writers with a lock
+  file. A killed build leaves at most a `tmp*` file, which `build-firmware`
+  removes after three hours.
+- PlatformIO drops archives no build has used for 30 days.
+
+Empty `MB_PIO_DOWNLOAD_VOLUME` turns it off; an invalid name or an unwritable
+volume also turns it off rather than failing builds. To empty it, with no build
+running: `docker volume rm <volume>`.
+
+Measured on the same VM at 1 CPU, Jentastic `v2.8.105`, with ccache already
+holding each board:
+
+| Board | Empty download volume | Download volume filled |
+| --- | --- | --- |
+| `heltec-v3` (not prewarmed) | 11.0 min, 72 downloads | 10.1 min, 0 downloads |
+| `heltec-v4` (prewarmed) | | 7.6 min, 0 downloads |
+| `nrf52_promicro_diy_tcxo` (prewarmed) | | 2.5 min, 0 downloads |
+
+The time saved is small (the 72 archives were 31 MB of libraries); what the
+volume mainly removes is a build's dependence on GitHub and the PlatformIO
+registry answering about 70 requests. A Heltec V4 built right after a Heltec V3
+shipped a `bootloader.bin` and `partitions.bin` identical to production V4
+builds, so the V3's framework rebuild did not reach it.
 
 ## Why There Is No PlatformIO Build Cache
 

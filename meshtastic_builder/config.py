@@ -46,6 +46,7 @@ class Config:
     docker_pids_limit: int
     ccache_volume: str = ""
     ccache_maxsize: str = "20G"
+    pio_download_volume: str = ""
 
 
 def load_config() -> Config:
@@ -91,6 +92,7 @@ def load_config() -> Config:
         docker_pids_limit=int(os.getenv("MB_DOCKER_PIDS_LIMIT", "512")),
         ccache_volume=os.getenv("MB_CCACHE_VOLUME", "").strip(),
         ccache_maxsize=os.getenv("MB_CCACHE_MAXSIZE", "20G").strip(),
+        pio_download_volume=os.getenv("MB_PIO_DOWNLOAD_VOLUME", "").strip(),
     )
 
 
