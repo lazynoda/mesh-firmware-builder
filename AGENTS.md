@@ -99,6 +99,9 @@ offers. Labels and `family` come from `custom_meshtastic_display_name` and
   post-actions that write the `.uf2` and `.factory.bin`, and the ZIP ships with
   nothing flashable. See
   [docs/worker-and-builder.md](docs/worker-and-builder.md#why-there-is-no-platformio-build-cache).
+  Build speed comes from ccache instead (`docker/ccache_wrap.sh`), which caches
+  below SCons. A change to it needs a real second build of the same board that
+  still ships its `.uf2`/`.factory.bin`, not only the unit tests.
 - Firmware tags resolve to a commit SHA, stored with the build; the worker
   builds the SHA. Historical tags may need dependencies the image lacks, so do
   not assume every tag builds.

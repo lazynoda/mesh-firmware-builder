@@ -55,6 +55,9 @@ docker run --rm \
   --pids-limit <MB_DOCKER_PIDS_LIMIT> \
   -v <job-input>:/work/input:ro \
   -v <job-output>:/work/output \
+  -v <MB_CCACHE_VOLUME>:/ccache \
+  -e CCACHE_DIR=/ccache \
+  -e CCACHE_MAXSIZE=<MB_CCACHE_MAXSIZE> \
   <MB_BUILDER_IMAGE> \
   <firmware-tag> \
   <firmware-sha> \
@@ -79,10 +82,79 @@ the build dies inside the container with
 
 `compose.yml` still pins `copy` for its worker rather than relying on `auto`.
 
-## Why There Is No PlatformIO Build Cache
+## Compiler Cache (ccache)
 
-Every build recompiles the whole tree. That is deliberate, and it costs roughly
-5 to 12 minutes per build.
+Builds share a [ccache](https://ccache.dev) cache, so object files that did not
+change since an earlier build (framework, libraries, most of Meshtastic) are
+reused instead of compiled again. Every SCons target and every post-action still
+runs, so the `.uf2` and the `.factory.bin` are always generated.
+
+How it is wired:
+
+- The worker mounts the Docker named volume `MB_CCACHE_VOLUME` at `/ccache` in
+  every builder container and sets `CCACHE_DIR=/ccache` and
+  `CCACHE_MAXSIZE=<MB_CCACHE_MAXSIZE>`. A named volume, not a host path, because
+  the daemon may be remote or rootless. Docker creates it on first use. Empty
+  `MB_CCACHE_VOLUME` turns the cache off and builds compile everything, as
+  before. An invalid name or size also turns it off rather than failing builds.
+- The builder image installs `ccache`, `docker/ccache_wrap.sh` (as
+  `/usr/local/bin/mb-ccache-wrap`) and `docker/ccache_pre.py`. Nothing in the
+  firmware is changed: the builder serves any firmware repository.
+- `build-firmware` runs the wrapper before `pio run`, and adds
+  `ccache_pre.py` as a PlatformIO `pre:` script through `PLATFORMIO_EXTRA_SCRIPTS`,
+  which runs the wrapper again once PlatformIO has installed any toolchain the
+  build was missing and before the first compile.
+- The wrapper replaces every `*-gcc`, `*-g++`, `*-c++` and `*-cc` in each
+  `packages/toolchain-*/bin` with a small shell script that calls ccache with the
+  real compiler, which moves to `packages/toolchain-*/.mb-real-bin/` together
+  with links to the rest of `bin/` (the ARM gcc loads its libraries from its own
+  directory, and the per-chip xtensa drivers call `xtensa-esp-elf-gcc` next to
+  them). The platforms set `CC` to a bare compiler name and put the package's
+  `bin/` first on `PATH`, so a wrapper elsewhere on `PATH` would never be used.
+- ccache identifies the compiler by package name and version from its
+  `package.json`, so a new toolchain never reuses objects of an old one.
+- `ccache` keeps the volume under `CCACHE_MAXSIZE` by dropping the least
+  recently used objects. Concurrent builds can share it.
+- The build log shows the hits and misses of that build under
+  "Compiler cache for this build", plus the size of the whole cache.
+
+A changed `userPrefs.jsonc` is safe and still fast. Each preference reaches every
+compile as a `-D` flag. ccache's direct mode hashes those flags, so it misses;
+its preprocessor mode then hashes the preprocessed source instead, where a
+`-D` only shows up in the files that use that macro. So exactly the files that
+read a changed preference are recompiled, and the rest still hit.
+
+Measured on the 2-vCPU ARM64 VM at 1 CPU per build, Jentastic `v2.8.105`:
+
+| Board | No cache | Empty cache (first build) | Same settings again | Other owner name |
+| --- | --- | --- | --- | --- |
+| `nrf52_promicro_diy_tcxo` | 7.0 min | 8.8 min | 1.5 min | 2.5 min |
+| `heltec-v4` | ~19.8 min ¹ | 26.0 min | 3.8 min | 7.6 min |
+
+¹ Median of the production builds of that board and version, same VM and CPU
+limit; not re-measured in the same run.
+
+The first build of a board and version is slower than without the cache (about
+25% here): every object misses, and on a miss ccache preprocesses the file
+before compiling it. Every later build of that board and version, with any
+settings, pays it back. On the VM's production queue, more than half the builds
+repeat a board and version already built.
+
+Other measurements from the same run:
+
+- Upstream `v2.8.2.d5f1619` Pro-micro, which also downloads its newer ARM
+  toolchain during the build (wrapped by the `pre:` script): 10.0 min with an
+  empty cache, 3.0 min with other settings after it.
+- Two Pro-micro builds at once at 0.5 CPU each, sharing the cache: 5.2 min each,
+  both with a `.uf2` holding their own owner name.
+- Cache size after those ten builds of three board/version pairs: 195 MB, so
+  roughly 50 to 80 MB per board and version.
+
+The firmware is not bit-for-bit reproducible between two builds of the same
+commit, with or without the cache, so compare builds by what they carry
+(preferences, files), not by hash.
+
+## Why There Is No PlatformIO Build Cache
 
 PlatformIO's `build_cache_dir` is a SCons `CacheDir`, and SCons does **not** run a
 target's post-actions when it retrieves that target from the cache. Meshtastic
@@ -103,9 +175,8 @@ ZIP went out with a `.hex` that needs a SWD or J-Link programmer while
 not there. The same failure applies to ESP32, where a missing `.factory.bin` also
 flips `write_flashing_notes` into its nRF52 branch.
 
-ccache would give the build time back without the bug, because it caches below
-SCons and every target is still genuinely built. That needs the toolchain wrapped
-in the builder image. Until then: full compiles. Do not reintroduce
+ccache (above) gives the build time back without the bug, because it caches
+below SCons and every target is still genuinely built. Do not reintroduce
 `PLATFORMIO_BUILD_CACHE_DIR`.
 
 `MB_DOCKER_NETWORK` defaults to `bridge` because users can select historical
@@ -134,6 +205,8 @@ and `MB_DOCKER_NETWORK=bridge`; see [Docker Compose Flow](compose-flow.md#remote
   `docker/prewarm.sh`,
 - installs PlatformIO pinned to `PLATFORMIO_VERSION` (6.1.19),
 - disables PlatformIO telemetry and upgrade checks,
+- installs `ccache` and the toolchain wrapper (see
+  [Compiler Cache](#compiler-cache-ccache)), after the prewarm,
 - installs `docker/build_firmware.sh` as the entrypoint, in a layer **after** the
   prewarm.
 

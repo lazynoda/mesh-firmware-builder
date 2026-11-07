@@ -240,5 +240,89 @@ class BuilderTests(unittest.TestCase):
             self.assertEqual(commands[-1], ["docker", "rm", "-f", "cid123"])
 
 
+def captured_command(config, transport):
+    """The docker run/create command the worker would issue for one build."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        input_dir = tmp_path / "input"
+        output_dir = tmp_path / "output"
+        input_dir.mkdir()
+        output_dir.mkdir()
+        (output_dir / "produced.zip").write_bytes(b"zip-content")
+        config = replace(config, root_dir=tmp_path, docker_transport=transport, builder_image="builder:test")
+
+        def fake_run(command, **kwargs):
+            if command[1] == "create":
+                return CompletedProcess(command, 0, stdout="cid123\n", stderr="")
+            return CompletedProcess(command, 0, stdout="ok", stderr="")
+
+        with patch("meshtastic_builder.builder.subprocess.run", side_effect=fake_run) as run:
+            run_docker_build(config, test_build(), input_dir, output_dir, tmp_path / "final.zip")
+        return run.call_args_list[0].args[0]
+
+
+class CompilerCacheTests(unittest.TestCase):
+    """ccache rides in a named volume mounted into every builder container."""
+
+    def test_cache_volume_is_mounted_for_both_transports(self):
+        config = replace(load_config(), ccache_volume="mb-ccache", ccache_maxsize="20G")
+        for transport in ("bind", "copy"):
+            with self.subTest(transport=transport):
+                command = captured_command(config, transport)
+                image_at = command.index("builder:test")
+                options = command[:image_at]
+                self.assertIn("mb-ccache:/ccache", options)
+                self.assertIn("CCACHE_DIR=/ccache", options)
+                self.assertIn("CCACHE_MAXSIZE=20G", options)
+                # Arguments after the image belong to build-firmware, not docker.
+                self.assertEqual(command[image_at + 1 :][:3], ["v-test", "abc123", "tbeam"])
+
+    def test_no_cache_volume_means_no_cache(self):
+        config = replace(load_config(), ccache_volume="", ccache_maxsize="20G")
+        for transport in ("bind", "copy"):
+            with self.subTest(transport=transport):
+                command = " ".join(captured_command(config, transport))
+                self.assertNotIn("CCACHE", command)
+                self.assertNotIn("/ccache", command)
+
+    def test_host_paths_and_bad_sizes_turn_the_cache_off_instead_of_failing(self):
+        # A host path would resolve on the daemon's side, which may be remote or
+        # rootless; a bad size would make ccache refuse every compile.
+        for volume, maxsize in (
+            ("/srv/ccache", "20G"),
+            ("../ccache", "20G"),
+            ("vol:/etc", "20G"),
+            ("mb-ccache", "20 GB"),
+            ("mb-ccache", "lots"),
+        ):
+            with self.subTest(volume=volume, maxsize=maxsize):
+                config = replace(load_config(), ccache_volume=volume, ccache_maxsize=maxsize)
+                self.assertEqual(builder.ccache_docker_args(config), [])
+
+    def test_ccache_sizes_ccache_accepts(self):
+        for maxsize in ("20G", "500M", "1.5G", "10Gi", "0"):
+            with self.subTest(maxsize=maxsize):
+                config = replace(load_config(), ccache_volume="mb-ccache", ccache_maxsize=maxsize)
+                self.assertIn(f"CCACHE_MAXSIZE={maxsize}", builder.ccache_docker_args(config))
+
+    def test_the_cache_is_ccache_not_platformio_build_cache(self):
+        config = replace(load_config(), ccache_volume="mb-ccache", ccache_maxsize="20G")
+        command = " ".join(captured_command(config, "bind"))
+        self.assertNotIn("PLATFORMIO_BUILD_CACHE_DIR", command)
+        self.assertNotIn("pio-cache", command)
+
+    def test_config_reads_the_cache_settings(self):
+        with patch.dict(os.environ, {"MB_CCACHE_VOLUME": " mb-ccache ", "MB_CCACHE_MAXSIZE": "5G"}):
+            config = load_config()
+        self.assertEqual(config.ccache_volume, "mb-ccache")
+        self.assertEqual(config.ccache_maxsize, "5G")
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("MB_CCACHE_VOLUME", None)
+            os.environ.pop("MB_CCACHE_MAXSIZE", None)
+            config = load_config()
+        self.assertEqual(config.ccache_volume, "")
+        self.assertEqual(config.ccache_maxsize, "20G")
+
+
 if __name__ == "__main__":
     unittest.main()

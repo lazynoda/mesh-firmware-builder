@@ -66,9 +66,11 @@ Why the files are named the way they are is explained in
 
 ## Running Your Own Instance
 
-Requirements: Docker with the Compose plugin, and about 12 GB of disk for the
-firmware builder image. A build usually takes 4 to 12 minutes, depending on the
-chip and the CPUs you give it.
+Requirements: Docker with the Compose plugin, about 12 GB of disk for the
+firmware builder image, and room for the compiler cache (capped at 20 GB by
+default, `MB_CCACHE_MAXSIZE`). The first build of a board and version takes
+roughly 7 to 26 minutes at 1 CPU, depending on the chip; later builds of the
+same board and version reuse the cache and take a few minutes.
 
 ```bash
 git clone https://github.com/lazynoda/meshtastic-builder.git

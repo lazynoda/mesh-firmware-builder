@@ -153,6 +153,45 @@ use_native_sreccat() {
   echo "PlatformIO's srec_cat cannot run on this host; using ${native}."
 }
 
+# Compiler cache (ccache), only when the worker mounted one and set CCACHE_DIR.
+# It caches each object file below SCons, so every target and every post-action
+# still runs and the .uf2/.factory.bin are always generated (PlatformIO's own
+# build_cache_dir skips post-actions on a hit; see docs/worker-and-builder.md).
+# A cache hit needs the same compiler, flags and preprocessed source, so a
+# changed userPrefs.jsonc misses for exactly the files it reaches.
+CCACHE_PRE_SCRIPT="/usr/local/lib/meshtastic-builder/ccache_pre.py"
+enable_ccache() {
+  if [[ -z "${CCACHE_DIR:-}" ]]; then
+    echo "No compiler cache configured; full compile."
+    return 0
+  fi
+  if ! command -v ccache >/dev/null 2>&1 || [[ ! -x /usr/local/bin/mb-ccache-wrap ]]; then
+    echo "This builder image has no ccache; full compile."
+    unset CCACHE_DIR
+    return 0
+  fi
+  # Toolchains already in the image are wrapped now; ones PlatformIO installs
+  # during this build are wrapped by the pre: script before the first compile.
+  /usr/local/bin/mb-ccache-wrap || echo "ccache: wrapping the toolchain failed; continuing."
+  # Also store the cap in the cache's own ccache.conf, so stats and cleanups run
+  # outside a build (an operator's `ccache --show-stats`) see the same limit.
+  if [[ -n "${CCACHE_MAXSIZE:-}" ]]; then
+    ccache --max-size "${CCACHE_MAXSIZE}" >/dev/null 2>&1 || true
+  fi
+  export PLATFORMIO_EXTRA_SCRIPTS="pre:${CCACHE_PRE_SCRIPT}"
+  # Counters for this build only: the cache directory is shared by every build.
+  CCACHE_STATSLOG="$(mktemp)"
+  export CCACHE_STATSLOG
+  echo "Compiler cache: ${CCACHE_DIR} (max ${CCACHE_MAXSIZE:-ccache default})"
+}
+
+report_ccache() {
+  [[ -n "${CCACHE_STATSLOG:-}" && -s "${CCACHE_STATSLOG}" ]] || return 0
+  echo "Compiler cache for this build:"
+  ccache --show-log-stats 2>/dev/null | sed -n '1,6p' || true
+  ccache --show-stats 2>/dev/null | grep -E '^ *(Cache size|Local storage)' || true
+}
+
 cd "${WORK_DIR}"
 phase "checkout ${FIRMWARE_TAG} (${FIRMWARE_SHA}) from ${FIRMWARE_REPO}"
 if [[ "${FIRMWARE_REPO}" == "${UPSTREAM_REPO}" ]]; then
@@ -206,6 +245,9 @@ fi
 cp "${INPUT_DIR}/userPrefs.jsonc" ./userPrefs.jsonc
 echo "userPrefs.jsonc in place ($(wc -c <./userPrefs.jsonc) bytes)"
 
+phase "compiler cache"
+enable_ccache
+
 phase "compile ${PIO_ENV}"
 # Retry once: pioarduino may replace tool-scons mid-run on the first build of a
 # platform version (platform-espressif32#529). A genuine compile error fails twice.
@@ -223,6 +265,7 @@ if ! pio run -e "${PIO_ENV}" 2>&1 | tee "${pio_log}"; then
   pio run -e "${PIO_ENV}"
 fi
 rm -f "${pio_log}"
+report_ccache
 
 # Only what a flasher consumes. .elf and .map are dropped on purpose: they were
 # 81% of the ZIP and nothing in bin/device-install.sh reads them, so they only

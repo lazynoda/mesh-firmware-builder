@@ -38,6 +38,8 @@ Configuration is read from environment variables.
 | `MB_DOCKER_MEMORY` | `4g` | Memory limit for firmware builder containers. |
 | `MB_DOCKER_PIDS_LIMIT` | `512` | PID limit for firmware builder containers. |
 | `MB_BUILD_TIMEOUT_SECONDS` | `3600` | Per-build timeout. |
+| `MB_CCACHE_VOLUME` | empty (`meshtastic-builder-ccache` in Compose) | Docker named volume mounted into every builder container as its [ccache](worker-and-builder.md#compiler-cache-ccache) directory. A name, never a host path. Empty turns the compiler cache off; an invalid name also turns it off instead of failing builds. |
+| `MB_CCACHE_MAXSIZE` | `20G` | Size cap ccache keeps the cache under, dropping the least recently used objects first. ccache syntax: a number with an optional `k`/`M`/`G`/`T` suffix (`Ki`/`Mi`/`Gi`/`Ti` for powers of two). An invalid value turns the cache off. |
 | `MB_DOCKER_SOCKET` | `/var/run/docker.sock` | Compose only: host path of the Docker socket mounted into the worker. Rootless Docker uses `/run/user/<uid>/docker.sock`. |
 | `MB_STALE_RUNNING_SECONDS` | `7200` | Running jobs older than this are requeued. |
 | `MB_ARTIFACT_TTL_DAYS` | `7` | Download availability after successful build. |

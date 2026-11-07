@@ -44,6 +44,8 @@ class Config:
     docker_cpus: str
     docker_memory: str
     docker_pids_limit: int
+    ccache_volume: str = ""
+    ccache_maxsize: str = "20G"
 
 
 def load_config() -> Config:
@@ -87,6 +89,8 @@ def load_config() -> Config:
         docker_cpus=os.getenv("MB_DOCKER_CPUS", "4"),
         docker_memory=os.getenv("MB_DOCKER_MEMORY", "4g"),
         docker_pids_limit=int(os.getenv("MB_DOCKER_PIDS_LIMIT", "512")),
+        ccache_volume=os.getenv("MB_CCACHE_VOLUME", "").strip(),
+        ccache_maxsize=os.getenv("MB_CCACHE_MAXSIZE", "20G").strip(),
     )
 
 

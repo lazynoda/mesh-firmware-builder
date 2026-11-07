@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Builds share a compiler cache ([ccache](https://ccache.dev)), so a board that
+  was built before compiles only what changed: the same board and firmware
+  version with other settings now take a fraction of the time (measured times in
+  [docs/worker-and-builder.md](docs/worker-and-builder.md#compiler-cache-ccache)).
+  It caches each object file below PlatformIO, so every build still runs the
+  steps that write the `.uf2` and `.factory.bin`. It is not PlatformIO's build
+  cache, which shipped ZIPs without them.
+- The build log shows how much of that build came from the cache.
+
+### Added
+
+- `MB_CCACHE_VOLUME` (Docker named volume for the cache; empty turns it off)
+  and `MB_CCACHE_MAXSIZE` (default `20G`; ccache drops the least recently used
+  objects past it).
+
+### Upgrading
+
+- Rebuild the builder image: it gains `ccache` and the toolchain wrapper in
+  layers after the prewarm, so the prewarm is reused.
+- Set `MB_CCACHE_VOLUME` in `.env` if you do not use the shipped `compose.yml`,
+  which defaults it to `meshtastic-builder-ccache`, and pass `MB_CCACHE_VOLUME`
+  and `MB_CCACHE_MAXSIZE` to the worker in a compose file of your own. Docker
+  creates the volume on the first build. Then recreate the worker.
+
 ## [1.4.1] - 2026-11-05
 
 ### Changed

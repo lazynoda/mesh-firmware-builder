@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
+import sys
 import shutil
 import subprocess
 import zipfile
@@ -281,9 +283,42 @@ def docker_transport(config: Config) -> str:
 # in it. Reproduced on nrf52_promicro_diy_tcxo: 15s build, .elf/.hex/.zip
 # present, no .uf2.
 #
-# ponytail: ccache would give the speed back without the bug, because it caches
-# below SCons and every target is still built. That needs the toolchain wrapped
-# in the builder image; until then, full compiles.
+# The speed comes from ccache instead (ccache_docker_args): it caches each
+# object file below SCons, so every target and every post-action still runs.
+
+CCACHE_MOUNT = "/ccache"
+# A Docker named volume, never a host path: the daemon may be remote or rootless,
+# where a host path would resolve somewhere else (or nowhere).
+CCACHE_VOLUME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
+# ccache's own size syntax: a number with an optional k/M/G/T suffix (Ki/Mi/Gi/Ti
+# for powers of two). Anything else would make ccache refuse every call.
+CCACHE_MAXSIZE_RE = re.compile(r"[0-9]+(\.[0-9]+)?([kKMGT]i?)?")
+
+
+def ccache_docker_args(config: Config) -> list[str]:
+    """Mount the shared compiler cache into the builder, or nothing when it is off.
+
+    Off when MB_CCACHE_VOLUME is empty. A malformed volume name or size also
+    turns it off rather than failing builds: the cache only ever buys speed.
+    """
+    volume = config.ccache_volume.strip()
+    maxsize = config.ccache_maxsize.strip()
+    if not volume:
+        return []
+    if not CCACHE_VOLUME_RE.fullmatch(volume):
+        print(f"MB_CCACHE_VOLUME {volume!r} is not a Docker volume name; building without ccache.", file=sys.stderr)
+        return []
+    if not CCACHE_MAXSIZE_RE.fullmatch(maxsize):
+        print(f"MB_CCACHE_MAXSIZE {maxsize!r} is not a ccache size; building without ccache.", file=sys.stderr)
+        return []
+    return [
+        "-v",
+        f"{volume}:{CCACHE_MOUNT}",
+        "-e",
+        f"CCACHE_DIR={CCACHE_MOUNT}",
+        "-e",
+        f"CCACHE_MAXSIZE={maxsize}",
+    ]
 
 
 def package_output(output_dir: Path, final_zip: Path, log: str) -> str:
@@ -331,6 +366,7 @@ def run_docker_build_bind(
         f"{input_dir.resolve()}:/work/input:ro",
         "-v",
         f"{output_dir.resolve()}:/work/output",
+        *ccache_docker_args(config),
         config.builder_image,
         *builder_args(build, source),
     ]
@@ -359,6 +395,7 @@ def run_docker_build_copy(
         config.docker_memory,
         "--pids-limit",
         str(config.docker_pids_limit),
+        *ccache_docker_args(config),
         config.builder_image,
         *builder_args(build, source),
     ]

@@ -43,6 +43,11 @@ services:
       MB_DOCKER_MEMORY: ${MB_DOCKER_MEMORY:-4g}
       MB_DOCKER_PIDS_LIMIT: ${MB_DOCKER_PIDS_LIMIT:-512}
       MB_BUILD_TIMEOUT_SECONDS: ${MB_BUILD_TIMEOUT_SECONDS:-3600}
+      # Named Docker volume the worker mounts into every builder container as its
+      # ccache directory. The worker never mounts it itself: the builders, which
+      # the daemon starts, do. Empty turns the compiler cache off.
+      MB_CCACHE_VOLUME: ${MB_CCACHE_VOLUME-meshtastic-builder-ccache}
+      MB_CCACHE_MAXSIZE: ${MB_CCACHE_MAXSIZE:-20G}
     volumes:
       - app-data:/data
       # Host path of the Docker socket. Rootless Docker lives at

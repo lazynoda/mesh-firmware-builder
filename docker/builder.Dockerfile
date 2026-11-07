@@ -62,6 +62,19 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# ccache for the compiler cache the worker mounts (MB_CCACHE_VOLUME). The
+# wrapper and the PlatformIO pre: script put it in front of each toolchain's
+# compilers at build time, so the prewarmed packages above stay untouched and a
+# build without a cache volume compiles exactly as before.
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y ccache \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker/ccache_wrap.sh /usr/local/bin/mb-ccache-wrap
+COPY docker/ccache_pre.py /usr/local/lib/meshtastic-builder/ccache_pre.py
+RUN chmod 755 /usr/local/bin/mb-ccache-wrap \
+    && chmod 644 /usr/local/lib/meshtastic-builder/ccache_pre.py
+
 # After the prewarm on purpose. This script changes whenever a patch, a phase
 # banner or a failure marker changes; copied in earlier, every such edit would
 # discard about an hour of prewarming for a shell diff.

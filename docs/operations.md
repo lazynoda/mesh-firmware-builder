@@ -52,6 +52,25 @@ python3 -m meshtastic_builder.cleanup
 
 The worker also runs cleanup periodically.
 
+## Compiler Cache
+
+Builds share a ccache cache in the Docker volume named by `MB_CCACHE_VOLUME`
+(`meshtastic-builder-ccache` in Compose); see
+[Worker And Builder](worker-and-builder.md#compiler-cache-ccache). ccache keeps it
+under `MB_CCACHE_MAXSIZE` on its own. To read its size and hit rate, or to
+empty it (the next build of each board then compiles everything once):
+
+```bash
+docker run --rm -v meshtastic-builder-ccache:/ccache -e CCACHE_DIR=/ccache \
+  --entrypoint ccache meshtastic-firmware-builder:local --show-stats
+# empty it, with no build running:
+docker volume rm meshtastic-builder-ccache
+```
+
+A Compose project prefixes nothing here: the worker passes the name to the
+daemon as is, so dev and prod instances on one host share the cache unless one
+sets another name.
+
 ## Firmware Version Admin
 
 The page has no refresh button: it only reads what is cached, and fetches from
