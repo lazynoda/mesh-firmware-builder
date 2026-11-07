@@ -82,8 +82,6 @@ const state = {
   lastBuild: null,
   // Queue position and time estimate from the server, refreshed with every poll.
   lastQueue: null,
-  lastDownloadUrl: null,
-  lastBuildUrl: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -1786,14 +1784,13 @@ async function submitBuild(event) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    history.replaceState(null, "", `/build/${encodeURIComponent(result.build.token)}`);
-    state.lastQueue = result.queue ?? null;
-    showBuild(result.build, result.downloadUrl, result.buildUrl);
-    startPolling(result.build.token);
+    // Navigate for real, so the private build URL lands in the browser history
+    // and the user cannot lose it by closing the tab. The build page shows the
+    // status, the queue and the download, and polls on its own.
     setStatusKey("status.queued");
+    location.assign(`/build/${encodeURIComponent(result.build.token)}`);
   } catch (error) {
     setStatus(error.message, true);
-  } finally {
     $("submitBuild").disabled = Boolean(state.unavailableDevices[$("deviceId").value]);
   }
 }
@@ -1809,10 +1806,8 @@ function describeBuildFirmware(build) {
   return name ? `${name} ${ref}` : ref;
 }
 
-function showBuild(build, downloadUrl = null, buildUrl = null) {
+function showBuild(build) {
   state.lastBuild = build;
-  if (downloadUrl) state.lastDownloadUrl = downloadUrl;
-  if (buildUrl) state.lastBuildUrl = buildUrl;
   $("result").hidden = false;
   renderBuildStatus(build.status, state.lastQueue);
   $("buildNode").textContent = build.ownerLongName || "-";
@@ -1822,7 +1817,7 @@ function showBuild(build, downloadUrl = null, buildUrl = null) {
 
   renderExpiry(build.expiresAt);
 
-  const url = state.lastBuildUrl || `${location.origin}/build/${build.token}`;
+  const url = `${location.origin}/build/${build.token}`;
   $("buildUrl").textContent = url;
   $("buildUrl").href = url;
 
@@ -1831,7 +1826,7 @@ function showBuild(build, downloadUrl = null, buildUrl = null) {
   const link = $("downloadLink");
   if (build.status === "succeeded") {
     link.textContent = t("result.downloadZip");
-    link.href = state.lastDownloadUrl || `/download/${build.token}`;
+    link.href = `/download/${build.token}`;
   } else if (build.status === "failed") {
     link.textContent = t("result.failed");
     link.removeAttribute("href");
@@ -2026,11 +2021,6 @@ if (buildViewToken) {
   state.buildViewOnly = true;
   document.querySelector(".app-main").prepend($("statusText"));
   $("buildForm").hidden = true;
-  // Swap the keys rather than the text: applyI18n() re-reads them on every
-  // language switch, so "Request created" would come back otherwise.
-  $("resultTitle").dataset.i18n = "result.titleView";
-  $("resultKeep").dataset.i18n = "result.keepView";
-  applyI18n();
   Promise.all([loadBuildOptions(), loadDeviceCatalog(), loadFirmwareCatalog()])
     .then(() => loadExistingBuild(buildViewToken))
     .catch((error) => setStatus(error.message, true));

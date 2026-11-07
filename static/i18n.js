@@ -181,8 +181,6 @@ const DICT = {
     "import.errNotReady": "Espera a que cargue la version de firmware y vuelve a probar.",
     "import.errForm": "No se pudo aplicar: {detail}",
 
-    "result.title": "Peticion creada",
-    "result.keep": "Guarda este enlace: es la unica forma de volver a tu compilacion.",
     "result.titleView": "Tu compilacion",
     "result.keepView": "Guarda esta pagina: es la unica forma de volver a tu compilacion.",
     "result.copy": "Copiar",
@@ -480,8 +478,6 @@ const DICT = {
     "import.errNotReady": "Wait for the firmware version to load and try again.",
     "import.errForm": "Could not apply it: {detail}",
 
-    "result.title": "Request created",
-    "result.keep": "Save this link: it is the only way back to your build.",
     "result.titleView": "Your build",
     "result.keepView": "Bookmark this page: it is the only way back to your build.",
     "result.copy": "Copy",

@@ -61,12 +61,17 @@ cannot drift from `MB_ARTIFACT_TTL_DAYS`.
 
 ## Deep Links
 
-A build is addressable as `/?build=<token>`. The token is a query parameter
-rather than a path segment so no server routing is needed. After a successful
-submit the URL is rewritten with `history.replaceState`, and the result panel
-shows that URL as its headline with a copy button. Nothing else records the
-build for the user, so the panel says so explicitly. On load, a `build`
-parameter fetches that build and resumes polling if it is still running.
+A build lives at `/build/<token>` (old `/?build=<token>` links redirect there).
+After a successful submit the browser navigates to that URL with
+`location.assign`, a real navigation, so the private link lands in the browser
+history and survives a closed tab. Nothing else records the build for the user,
+so the build page shows its own URL as the headline, with a copy button, and
+says it is the only way back. If the request fails (validation, server error),
+the user stays on the form with the error.
+
+The build page hides the form, loads the build and polls it every 5 seconds
+until it finishes. Going back from it returns to the form, which the browser may
+show empty.
 
 While the build is queued or running, the status line also shows its place in
 the queue and a time estimate, from the `queue` object of

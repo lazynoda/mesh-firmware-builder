@@ -273,7 +273,7 @@ Response:
     "artifactSizeBytes": null,
     "error": null
   },
-  "buildUrl": "http://localhost:8080/?build=private-random-token",
+  "buildUrl": "http://localhost:8080/build/private-random-token",
   "statusUrl": "http://localhost:8080/api/builds/private-random-token",
   "downloadUrl": "http://localhost:8080/download/private-random-token"
 }
