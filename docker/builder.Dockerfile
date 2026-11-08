@@ -5,6 +5,7 @@ ARG MESHTASTIC_REPO=https://github.com/meshtastic/firmware.git
 # release tag at image build time; pass a tag to pin it.
 ARG MESHTASTIC_REF=latest
 ARG PREWARM_ENVS="heltec-v4 nrf52_promicro_diy_tcxo"
+# The default `pio` (the lowest Core, see below for the others).
 ARG PLATFORMIO_VERSION=6.1.19
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -26,8 +27,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
       python3-venv \
       unzip \
       zip \
-    # 6.2.0 ships tool-scons 4.11, which dropped SCons.Tool.FortranCommon and breaks
-    # the pioarduino ESP32 link step. 6.1.19 builds both ESP32-S3 and nRF52 targets.
+    # The lowest Core any offered firmware needs. 6.2.0 ships tool-scons 4.11,
+    # which dropped SCons.Tool.FortranCommon and breaks the link step of the
+    # pioarduino 55.03.311 ESP32 platform (2.8.1, Jentastic 2.8.10x).
     && pip3 install --no-cache-dir "platformio==${PLATFORMIO_VERSION}" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /root/.cache/pip
@@ -74,6 +76,23 @@ COPY docker/ccache_wrap.sh /usr/local/bin/mb-ccache-wrap
 COPY docker/ccache_pre.py /usr/local/lib/meshtastic-builder/ccache_pre.py
 RUN chmod 755 /usr/local/bin/mb-ccache-wrap \
     && chmod 644 /usr/local/lib/meshtastic-builder/ccache_pre.py
+
+# Further PlatformIO Cores, one venv each under /opt/pio-cores/<x.y.z>. Platforms
+# declare only the lowest Core they accept, and a newer Core can still break an
+# older platform mid-build, so each board is built with the lowest Core its
+# platform accepts: the worker reads which one and passes MB_PLATFORMIO_VERSION
+# (meshtastic_builder/platformio_versions.py, whose PLATFORMIO_VERSIONS must
+# list the same versions). 6.2.0: pioarduino 55.03.312-1 (upstream 2.8.2,
+# Jentastic 2.8.201) requires it. They share PLATFORMIO_CORE_DIR with the
+# default `pio`. After the prewarm so adding one costs seconds.
+ARG PLATFORMIO_EXTRA_CORES="6.2.0"
+RUN for version in ${PLATFORMIO_EXTRA_CORES}; do \
+      python3 -m venv "/opt/pio-cores/${version}" \
+      && "/opt/pio-cores/${version}/bin/pip" install --no-cache-dir "platformio==${version}" \
+      && "/opt/pio-cores/${version}/bin/pio" --version | grep -q " ${version}$" \
+      || exit 1; \
+    done \
+    && rm -rf /root/.cache/pip
 
 # After the prewarm on purpose. This script changes whenever a patch, a phase
 # banner or a failure marker changes; copied in earlier, every such edit would

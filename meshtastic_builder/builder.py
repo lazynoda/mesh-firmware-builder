@@ -193,6 +193,15 @@ def run_docker_build(
     return run_docker_build_bind(config, build, input_dir, output_dir, final_zip, source)
 
 
+def builder_env_args(config: Config, build: dict[str, object], source: FirmwareSource) -> list[str]:
+    """`-e MB_PLATFORMIO_VERSION=<x.y.z>` when the board list knows which Core
+    builds this env; nothing otherwise, and build-firmware then picks it."""
+    from .board_catalog import platformio_for_build
+
+    version = platformio_for_build(config, source, str(build["firmware_sha"]), str(build["platformio_env"]))
+    return ["-e", f"MB_PLATFORMIO_VERSION={version}"] if version else []
+
+
 def builder_args(build: dict[str, object], source: FirmwareSource) -> list[str]:
     """Positional arguments of build-firmware: tag, commit, env and the repository to fetch from."""
     return [
@@ -396,6 +405,7 @@ def run_docker_build_bind(
         "-v",
         f"{output_dir.resolve()}:/work/output",
         *cache_docker_args(config),
+        *builder_env_args(config, build, source),
         config.builder_image,
         *builder_args(build, source),
     ]
@@ -425,6 +435,7 @@ def run_docker_build_copy(
         "--pids-limit",
         str(config.docker_pids_limit),
         *cache_docker_args(config),
+        *builder_env_args(config, build, source),
         config.builder_image,
         *builder_args(build, source),
     ]

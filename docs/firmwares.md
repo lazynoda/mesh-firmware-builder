@@ -198,8 +198,12 @@ offered version builds the board.
 
 Reason codes the page translates (`device.unavailable.<code>` in
 `static/i18n.js`): `firmware_too_big`, the image does not fit in the board's
-flash. A new code needs an ES and EN text there and in
-`UNAVAILABLE_REASONS` in `board_catalog.py`.
+flash; `platformio_unsupported`, set by the builder itself (not in
+`firmwares.json`) when the board's platform needs a PlatformIO Core the
+builder image does not carry yet (see
+[PlatformIO Core per board](worker-and-builder.md#platformio-core-per-board)).
+A new code needs an ES and EN text there and in `UNAVAILABLE_REASONS` in
+`board_catalog.py`.
 
 Current entries: Jentastic, Heltec Mesh Node T096, Heltec Mesh Pocket (5000
 and 10000 mAh, with and without InkHUD) and LILYGO T-Echo, which overflow

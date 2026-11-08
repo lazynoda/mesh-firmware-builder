@@ -296,14 +296,57 @@ filesystem, so this does not mutate shared service state, avoids copying the
 firmware checkout per request, and lets PlatformIO reuse warmed `.pio` artifacts
 from the single builder image when they are still valid.
 
-PlatformIO stays pinned to 6.1.19 on purpose. Core 6.2.0 requires tool-scons
-4.11 while pioarduino platform-espressif32 pins 4.8.1 and replaces the package
-under the running SCons, so every ESP32-S3 hybrid build fails with
-`No module named 'SCons.Tool.FortranCommon'`
-([platform-espressif32#529](https://github.com/pioarduino/platform-espressif32/issues/529)).
-Even on 6.1.19 the first run after a platform change can fail during that swap,
-so both prewarm and the runtime entrypoint retry `pio run` once. Bump the pin
-only after a real `heltec-v4` build passes. The runtime entrypoint skips the
+### PlatformIO Core per board
+
+The image carries more than one PlatformIO Core: `pio` is 6.1.19, and each
+further one lives in its own venv as `/opt/pio-cores/<x.y.z>/bin/pio` (6.2.0
+today). They share `/opt/platformio`, so packages are not duplicated.
+
+Each board is built with the **lowest** Core its platform accepts:
+
+- A platform declares only a minimum (`engines.platformio` in its
+  `platform.json`), never a maximum, and a newer Core can still break an older
+  platform halfway through. Core 6.2.0 brings tool-scons 4.11, which dropped
+  `SCons.Tool.FortranCommon`; the pioarduino 55.03.311 ESP32 platform
+  (upstream 2.8.0-2.8.1, Jentastic 2.8.103-2.8.105) declares `>=6.1.19`, starts
+  fine on 6.2.0 and fails at link time with
+  `No module named 'SCons.Tool.FortranCommon'`
+  ([platform-espressif32#529](https://github.com/pioarduino/platform-espressif32/issues/529)).
+- pioarduino 55.03.312-1 (upstream 2.8.2, Jentastic 2.8.201, Nodastic)
+  declares `>=6.2.0`, and 6.1.19 refuses it before compiling anything with
+  `IncompatiblePlatform ... depends on PlatformIO Core >=6.2.0`.
+
+Which Core a board needs is worked out when the board list of a commit is read
+(`meshtastic_builder/platformio_versions.py`, stored in the same
+`board_catalogs` row): the root `platformio.ini` and every file its
+`extra_configs` loads, the board env's `platform` after resolving `extends`,
+then that platform's `platform.json` from GitHub (registry platforms
+`platformio/<name>@x.y.z` from the `v<x.y.z>` tag of
+`platformio/platform-<name>`; archive, release and `git#ref` URLs from their
+own repository). A platform for Core 2-5 counts as compatible with any 6.x, as
+PlatformIO itself does (`ststm32` declares `^5`). The worker passes the answer
+as `MB_PLATFORMIO_VERSION`, and `BUILD_INFO.txt` and the log name the Core
+that ran.
+
+When the answer is unknown (a `platform` the lookup does not resolve, such as
+a version range, or a `platform.json` it could not read), the worker passes
+nothing and the entrypoint starts on the lowest Core; if PlatformIO answers
+`IncompatiblePlatform`, it moves up one Core and runs again. That costs
+seconds, because PlatformIO refuses before compiling. A Core that was named is
+never changed at build time. A network failure during the lookup is not
+stored, so the next request reads it again. When a platform needs a Core the
+image does not have, the board is listed as unavailable
+(`platformio_unsupported`) instead of being queued to fail.
+
+To add a Core: append it to `PLATFORMIO_EXTRA_CORES` in
+`docker/builder.Dockerfile` and to `PLATFORMIO_VERSIONS` in
+`platformio_versions.py`, bump `CATALOG_FORMAT` in `board_catalog.py` so
+stored answers are worked out again, and run a real build of one board per
+platform family on it.
+
+Even on the right Core the first run after a platform change can fail while
+pioarduino swaps tool-scons, so both prewarm and the runtime entrypoint retry
+`pio run` once on the same Core. The runtime entrypoint skips the
 retry when the linker reports `region ... overflowed by N bytes`: linking the
 same objects again fails the same way, so it stops at once with
 `firmware_too_big` (`tests/test_build_script.py` runs that block with a fake

@@ -26,20 +26,49 @@ def compile_block() -> str:
     return match.group("body")
 
 
-def run_compile(pio_output: str, *, fails: int) -> tuple[subprocess.CompletedProcess, int]:
-    """Run the compile block with a pio that prints `pio_output` and fails `fails` times."""
+def platformio_functions() -> str:
+    """select_platformio and next_platformio, as defined in build_firmware.sh."""
+    text = SCRIPT.read_text(encoding="utf-8")
+    match = re.search(r'\nPIO_CORES_DIR=.*?\n(?=report_ccache\(\) \{)', text, re.S)
+    assert match, "PlatformIO selection block not found in build_firmware.sh"
+    return match.group(0)
+
+
+def fake_pio(path: Path, version: str, calls: Path, output: str, fails: int) -> None:
+    """A pio that reports `version`, logs each run and fails its first `fails` runs."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "#!/usr/bin/env bash\n"
+        f'if [ "$1" = "--version" ]; then echo "PlatformIO Core, version {version}"; exit 0; fi\n'
+        f'echo "{version}" >> "{calls}"\n'
+        f'n=$(grep -c . "{calls}")\n'
+        f"cat <<'EOF'\n{output}\nEOF\n"
+        f'[ "$n" -gt {fails} ]\n'
+    )
+    path.chmod(path.stat().st_mode | stat.S_IEXEC)
+
+
+def run_compile(
+    pio_output: str,
+    *,
+    fails: int,
+    wanted: str | None = None,
+    cores: tuple[str, ...] = ("6.2.0",),
+    default: str = "6.1.19",
+) -> tuple[subprocess.CompletedProcess, int, list[str]]:
+    """Run the PlatformIO selection and the compile block with fake Cores.
+
+    `default` is the image's `pio`, `cores` the extra ones under the cores dir.
+    Every run is logged with the version that ran it; the first `fails` runs fail.
+    Returns (process, number of runs, versions that ran, in order).
+    """
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         calls = tmp_path / "calls"
-        calls.write_text("0")
-        pio = tmp_path / "pio"
-        pio.write_text(
-            "#!/usr/bin/env bash\n"
-            f'n=$(( $(cat "{calls}") + 1 )); echo "$n" > "{calls}"\n'
-            f"cat <<'EOF'\n{pio_output}\nEOF\n"
-            f'[ "$n" -gt {fails} ]\n'
-        )
-        pio.chmod(pio.stat().st_mode | stat.S_IEXEC)
+        calls.write_text("")
+        fake_pio(tmp_path / "bin" / "pio", default, calls, pio_output, fails)
+        for version in cores:
+            fake_pio(tmp_path / "cores" / version / "bin" / "pio", version, calls, pio_output, fails)
         script = (
             "set -euo pipefail\n"
             "PIO_ENV=test-env\n"
@@ -47,17 +76,18 @@ def run_compile(pio_output: str, *, fails: int) -> tuple[subprocess.CompletedPro
             "use_native_sreccat() { :; }\n"
             "report_ccache() { :; }\n"
             'fail() { echo "MB_FAILURE code=$1 phase=$2 detail=$3" >&2; exit "${4:-1}"; }\n'
+            + platformio_functions().replace('PIO_CORES_DIR="/opt/pio-cores"', f'PIO_CORES_DIR="{tmp_path / "cores"}"')
+            + "\nselect_platformio\n"
             + compile_block()
             + "\necho COMPILED\n"
         )
-        proc = subprocess.run(
-            [BASH, "-c", script],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env={**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"},
-        )
-        return proc, int(calls.read_text())
+        env = {**os.environ, "PATH": f"{tmp_path / 'bin'}:{os.environ['PATH']}"}
+        env.pop("MB_PLATFORMIO_VERSION", None)
+        if wanted is not None:
+            env["MB_PLATFORMIO_VERSION"] = wanted
+        proc = subprocess.run([BASH, "-c", script], capture_output=True, text=True, timeout=30, env=env)
+        ran = [line for line in calls.read_text().splitlines() if line]
+        return proc, len(ran), ran
 
 
 OVERFLOW = (
@@ -71,7 +101,7 @@ OVERFLOW = (
 @unittest.skipUnless(Path(BASH).exists(), "bash not available")
 class CompileRetryTests(unittest.TestCase):
     def test_flash_overflow_fails_once_without_retry(self):
-        proc, calls = run_compile(OVERFLOW, fails=99)
+        proc, calls, _ran = run_compile(OVERFLOW, fails=99)
         self.assertEqual(calls, 1)
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn(
@@ -82,22 +112,87 @@ class CompileRetryTests(unittest.TestCase):
 
     def test_other_failure_is_retried_once(self):
         # pioarduino swapping tool-scons mid-run: the second run succeeds.
-        proc, calls = run_compile("ModuleNotFoundError: No module named 'SCons.Tool.FortranCommon'", fails=1)
+        proc, calls, _ran = run_compile("ModuleNotFoundError: No module named 'SCons.Tool.FortranCommon'", fails=1)
         self.assertEqual(calls, 2)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn("COMPILED", proc.stdout)
 
     def test_genuine_compile_error_still_fails_after_the_retry(self):
-        proc, calls = run_compile("src/main.cpp:1:1: error: boom", fails=99)
+        proc, calls, _ran = run_compile("src/main.cpp:1:1: error: boom", fails=99)
         self.assertEqual(calls, 2)
         self.assertNotEqual(proc.returncode, 0)
         self.assertNotIn("MB_FAILURE", proc.stderr)
 
     def test_success_runs_pio_once_and_keeps_its_output(self):
-        proc, calls = run_compile("========== [SUCCESS] Took 1.00 seconds ==========", fails=0)
+        proc, calls, _ran = run_compile("========== [SUCCESS] Took 1.00 seconds ==========", fails=0)
         self.assertEqual(calls, 1)
         self.assertEqual(proc.returncode, 0)
         self.assertIn("[SUCCESS]", proc.stdout)
+
+
+INCOMPATIBLE = (
+    "Error: Traceback ...\n"
+    "IncompatiblePlatform: Development platform 'espressif32' is not compatible with "
+    "PlatformIO Core v6.1.19 and depends on PlatformIO Core >=6.2.0."
+)
+SUCCESS = "========== [SUCCESS] Took 1.00 seconds =========="
+
+
+@unittest.skipUnless(Path(BASH).exists(), "bash not available")
+class PlatformioSelectionTests(unittest.TestCase):
+    def test_named_core_runs_and_no_other(self):
+        proc, _calls, ran = run_compile(SUCCESS, fails=0, wanted="6.2.0")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(ran, ["6.2.0"])
+        self.assertIn("PlatformIO: PlatformIO Core, version 6.2.0 (chosen for this board)", proc.stdout)
+
+    def test_named_core_that_is_the_default_pio(self):
+        proc, _calls, ran = run_compile(SUCCESS, fails=0, wanted="6.1.19")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(ran, ["6.1.19"])
+
+    def test_without_a_name_the_lowest_core_runs(self):
+        proc, _calls, ran = run_compile(SUCCESS, fails=0)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(ran, ["6.1.19"])
+        self.assertIn("(default; this build did not name one)", proc.stdout)
+
+    def test_without_a_name_a_refused_platform_moves_up_one_core(self):
+        proc, _calls, ran = run_compile(INCOMPATIBLE, fails=1)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(ran, ["6.1.19", "6.2.0"])
+        self.assertIn("retrying with PlatformIO Core, version 6.2.0", proc.stdout)
+
+    def test_named_core_never_moves_even_when_refused(self):
+        # The worker read the platform: a refusal then is a real problem, not a guess to correct.
+        proc, _calls, ran = run_compile(INCOMPATIBLE, fails=99, wanted="6.1.19")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(ran, ["6.1.19", "6.1.19"])
+
+    def test_refused_by_the_highest_core_fails_with_the_reason(self):
+        proc, _calls, ran = run_compile(INCOMPATIBLE, fails=99, cores=())
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(ran, ["6.1.19"])
+        self.assertIn("MB_FAILURE code=infrastructure phase=compile", proc.stderr)
+        self.assertIn("depends on PlatformIO Core >=6.2.0", proc.stderr)
+
+    def test_other_failures_retry_on_the_same_core(self):
+        # The old FortranCommon hiccup must not be taken as "needs a newer Core".
+        proc, _calls, ran = run_compile("ModuleNotFoundError: No module named 'SCons.Tool.FortranCommon'", fails=1)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(ran, ["6.1.19", "6.1.19"])
+
+    def test_missing_named_core_fails_before_compiling(self):
+        proc, _calls, ran = run_compile(SUCCESS, fails=0, wanted="7.0.0")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(ran, [])
+        self.assertIn("This builder image has no PlatformIO 7.0.0.", proc.stderr)
+
+    def test_malformed_version_is_refused(self):
+        proc, _calls, ran = run_compile(SUCCESS, fails=0, wanted="6.2.0; rm -rf /")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(ran, [])
+        self.assertIn("Invalid PlatformIO version", proc.stderr)
 
 
 WRAP = ROOT / "docker" / "ccache_wrap.sh"

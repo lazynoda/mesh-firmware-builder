@@ -211,6 +211,53 @@ use_shared_downloads() {
   echo "Package downloads: ${shared} ($(find "${shared}" -maxdepth 1 -type f ! -name '*.lock' ! -name usage.db ! -name 'tmp*' | wc -l) archives, $(du -sh "${shared}" 2>/dev/null | cut -f1))"
 }
 
+
+# PlatformIO Core for this build. The image carries several (see
+# docker/builder.Dockerfile): `pio` is the lowest, the others live in their own
+# venvs as /opt/pio-cores/<x.y.z>/bin/pio. The worker passes
+# MB_PLATFORMIO_VERSION when it read, from the firmware's platformio.ini and
+# the platform's platform.json, which one this board needs. Without it the
+# lowest runs first and the build moves up only when PlatformIO itself refuses
+# the platform (IncompatiblePlatform), which it does before compiling anything.
+# Never the other way round: a newer Core accepts an older platform and then
+# breaks it halfway through the link (SCons 4.11 dropped FortranCommon).
+PIO_CORES_DIR="/opt/pio-cores"
+PIO_BIN="pio"
+select_platformio() {
+  local wanted="${MB_PLATFORMIO_VERSION:-}"
+  if [[ -z "${wanted}" ]]; then
+    echo "PlatformIO: $(pio --version) (default; this build did not name one)"
+    return 0
+  fi
+  if [[ ! "${wanted}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    fail infrastructure caches "Invalid PlatformIO version: ${wanted}" 2
+  fi
+  if [[ "$(pio --version)" == *" ${wanted}" ]]; then
+    PIO_BIN="pio"
+  elif [[ -x "${PIO_CORES_DIR}/${wanted}/bin/pio" ]]; then
+    PIO_BIN="${PIO_CORES_DIR}/${wanted}/bin/pio"
+  else
+    fail infrastructure caches "This builder image has no PlatformIO ${wanted}."
+  fi
+  echo "PlatformIO: $("${PIO_BIN}" --version) (chosen for this board)"
+}
+
+# The next Core up from the one that just refused the platform, or nothing.
+next_platformio() {
+  local current version
+  current="$("${PIO_BIN}" --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+$')"
+  shopt -s nullglob
+  for version in $(printf '%s\n' "${PIO_CORES_DIR}"/*/ | xargs -r -n1 basename | sort -V); do
+    shopt -u nullglob
+    if [[ "$(printf '%s\n%s\n' "${current}" "${version}" | sort -V | tail -1)" == "${version}" \
+      && "${version}" != "${current}" && -x "${PIO_CORES_DIR}/${version}/bin/pio" ]]; then
+      echo "${PIO_CORES_DIR}/${version}/bin/pio"
+      return 0
+    fi
+  done
+  shopt -u nullglob
+}
+
 report_ccache() {
   [[ -n "${CCACHE_STATSLOG:-}" && -s "${CCACHE_STATSLOG}" ]] || return 0
   echo "Compiler cache for this build:"
@@ -274,6 +321,7 @@ echo "userPrefs.jsonc in place ($(wc -c <./userPrefs.jsonc) bytes)"
 phase "caches"
 enable_ccache
 use_shared_downloads
+select_platformio
 
 phase "compile ${PIO_ENV}"
 # Retry once: pioarduino may replace tool-scons mid-run on the first build of a
@@ -282,14 +330,24 @@ phase "compile ${PIO_ENV}"
 # bring its own tool-sreccat, which only the retry can then use.
 # Except when the linker says the image does not fit: a retry links the same
 # objects again and fails the same way, so it would only waste a minute of CPU.
+# And when no Core was named and the default one refuses the platform, move up
+# one Core instead of retrying the same one (see select_platformio).
 use_native_sreccat
 pio_log="$(mktemp)"
-if ! pio run -e "${PIO_ENV}" 2>&1 | tee "${pio_log}"; then
+if ! "${PIO_BIN}" run -e "${PIO_ENV}" 2>&1 | tee "${pio_log}"; then
   if grep -qE "region [\`'\"]?[A-Za-z0-9_]+[\`'\"]? overflowed by [0-9,]+ bytes" "${pio_log}"; then
     fail firmware_too_big compile "$(grep -m1 -oE "region [^ ]+ overflowed by [0-9,]+ bytes" "${pio_log}")"
   fi
+  if [[ -z "${MB_PLATFORMIO_VERSION:-}" ]] && grep -q "IncompatiblePlatform" "${pio_log}"; then
+    next="$(next_platformio)"
+    if [[ -z "${next}" ]]; then
+      fail infrastructure compile "$(grep -m1 -oE "is not compatible with PlatformIO Core [^ ]+ and depends on PlatformIO Core [^ .]+(\.[0-9]+)*" "${pio_log}" || echo "No PlatformIO in this image accepts this platform.")"
+    fi
+    PIO_BIN="${next}"
+    echo "PlatformIO: the platform needs a newer Core; retrying with $("${PIO_BIN}" --version)"
+  fi
   use_native_sreccat
-  pio run -e "${PIO_ENV}"
+  "${PIO_BIN}" run -e "${PIO_ENV}"
 fi
 rm -f "${pio_log}"
 report_ccache
@@ -337,7 +395,7 @@ write_flashing_notes "${OUTPUT_DIR}/files"
   echo "builder_image_created_at=$(cat /etc/builder-image-created-at 2>/dev/null || echo unknown)"
   echo "actual_git_sha=$(git rev-parse HEAD)"
   echo "platformio_env=${PIO_ENV}"
-  echo "platformio_version=$(pio --version)"
+  echo "platformio_version=$("${PIO_BIN}" --version)"
 } >> "${OUTPUT_DIR}/files/BUILD_INFO.txt"
 
 if [[ -z "$(find "${OUTPUT_DIR}/files" -type f ! -name BUILD_INFO.txt ! -name userPrefs.jsonc -print -quit)" ]]; then

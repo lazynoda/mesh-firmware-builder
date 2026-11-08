@@ -26,6 +26,7 @@ const DICT = {
     "device.unavailable": "no disponible",
     "device.unavailableHint": "No disponible con {firmware} por ahora: {reason}. Estamos trabajando en ello ({issue}). Mientras tanto puedes compilarlo con Meshtastic Oficial.",
     "device.unavailable.firmware_too_big": "el firmware no cabe en la memoria flash de esta placa",
+    "device.unavailable.platformio_unsupported": "esta version necesita una version de PlatformIO que el compilador aun no tiene",
     "device.unavailableFixedHint": "No disponible con {firmware} {version}: {reason}. Funciona desde {firmware} {tag}.",
     "device.unavailableComingHint":
       "No disponible con {firmware} {version}: {reason}. Funcionara a partir de la version {fixed}, que aun no ha salido ({issue}). Mientras tanto puedes compilarlo con Meshtastic Oficial.",
@@ -324,6 +325,7 @@ const DICT = {
     "device.unavailable": "unavailable",
     "device.unavailableHint": "Not available with {firmware} for now: {reason}. We are working on it ({issue}). Meanwhile you can build it with Meshtastic Oficial.",
     "device.unavailable.firmware_too_big": "the firmware does not fit in this board's flash memory",
+    "device.unavailable.platformio_unsupported": "this version needs a PlatformIO release the builder does not have yet",
     "device.unavailableFixedHint": "Not available with {firmware} {version}: {reason}. It works from {firmware} {tag}.",
     "device.unavailableComingHint":
       "Not available with {firmware} {version}: {reason}. It will work from version {fixed}, which is not out yet ({issue}). Meanwhile you can build it with Meshtastic Oficial.",

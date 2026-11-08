@@ -15,7 +15,8 @@ from .config import Config, ensure_directories, load_config
 from .cleanup import build_is_expired, expire_build_artifact
 from .db import build_stats, get_build_by_token, initialize_database, public_build_view
 from .devices import Device, enabled_devices
-from .board_catalog import devices_for
+from .board_catalog import catalog_for, platformio_unavailable
+from .device_sync import exclusion_reason
 from .firmwares import DEFAULT_FIRMWARE_ID, FirmwareSource, get_firmware, load_firmware_catalog
 from .firmware import (
     FirmwareLookupError,
@@ -44,7 +45,12 @@ def _public_error(message: str) -> dict[str, str]:
     return {"error": message}
 
 
-def device_json(device: Device, source: FirmwareSource | None, version: str | None = None) -> dict[str, Any]:
+def device_json(
+    device: Device,
+    source: FirmwareSource | None,
+    version: str | None = None,
+    platformio: dict[str, str | None] | None = None,
+) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "id": device.id,
         "label": device.label,
@@ -60,6 +66,10 @@ def device_json(device: Device, source: FirmwareSource | None, version: str | No
     unavailable = source.unavailable(device.platformio_env, version) if source is not None else None
     if unavailable is not None:
         payload["unavailable"] = unavailable.public()
+    # Its platform needs a PlatformIO Core the builder image does not carry yet.
+    needs_core = platformio_unavailable(device.platformio_env, platformio or {})
+    if needs_core is not None:
+        payload["unavailable"] = needs_core
     return payload
 
 
@@ -104,6 +114,7 @@ class MeshtasticBuilderHandler(BaseHTTPRequestHandler):
                 firmware_id = query.get("firmware", [""])[0]
                 source = None
                 gate_version = None
+                platformio: dict[str, str | None] = {}
                 if firmware_id:
                     # The boards of the selected firmware at the selected version.
                     version = resolve_supported_version(
@@ -111,14 +122,15 @@ class MeshtasticBuilderHandler(BaseHTTPRequestHandler):
                     )
                     source = get_firmware(self.config.root_dir, firmware_id)
                     gate_version = version["version"]
-                    devices, from_firmware = devices_for(self.config, source, version["sha"])
+                    devices, platformio, from_firmware = catalog_for(self.config, source, version["sha"])
+                    devices = [d for d in devices if exclusion_reason(d.platformio_env, d.family) is None]
                 else:
                     # No firmware named: the static list, which also labels old builds.
                     devices, from_firmware = enabled_devices(self.config.root_dir), False
                 return self.json_response(
                     {
                         "fromFirmware": from_firmware,
-                        "devices": [device_json(device, source, gate_version) for device in devices],
+                        "devices": [device_json(device, source, gate_version, platformio) for device in devices],
                     }
                 )
             if path in {"/api/health", "/health"}:

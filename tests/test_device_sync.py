@@ -227,7 +227,7 @@ class SyncTests(unittest.TestCase):
         from meshtastic_builder.firmwares import get_firmware
 
         cached = [device("a", "A"), device("xiao_nrf54l15_lr2021", "XIAO", family="nrf54l15")]
-        with mock_patch.object(board_catalog, "_devices_for", return_value=(cached, True)):
+        with mock_patch.object(board_catalog, "catalog_for", return_value=(cached, {}, True)):
             devices, _ = board_catalog.devices_for(None, get_firmware(ROOT, "meshtastic"), "a" * 40)
         self.assertEqual([d.platformio_env for d in devices], ["a"])
 

@@ -29,6 +29,16 @@ def test_build(token="token-123"):
 
 
 class BuilderTests(unittest.TestCase):
+    def test_the_board_s_platformio_core_reaches_the_builder(self):
+        config = replace(load_config(), builder_image="builder:test")
+        build = {**test_build(), "firmware_sha": "a" * 40}
+        source = builder.build_firmware_source(config, build)
+        with patch("meshtastic_builder.board_catalog.platformio_for_build", return_value="6.2.0") as lookup:
+            self.assertEqual(builder.builder_env_args(config, build, source), ["-e", "MB_PLATFORMIO_VERSION=6.2.0"])
+        lookup.assert_called_once_with(config, source, "a" * 40, "tbeam")
+        with patch("meshtastic_builder.board_catalog.platformio_for_build", return_value=None):
+            self.assertEqual(builder.builder_env_args(config, build, source), [])
+
     def test_fake_build_creates_zip_with_expected_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

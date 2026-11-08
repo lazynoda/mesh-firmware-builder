@@ -391,6 +391,120 @@ class BoardCatalogTests(unittest.TestCase):
             self.assertEqual(len(calls), first_calls)  # second lookup served from SQLite
             self.assertEqual([d.id for d in again], [d.id for d in devices])
 
+    def test_platformio_version_is_read_with_the_boards_and_stored(self):
+        from meshtastic_builder import platformio_versions
+        from meshtastic_builder.board_catalog import catalog_for, platformio_for_build
+
+        platformio_versions._engine_cache.clear()
+        root_ini = "[platformio]\nextra_configs =\n  variants/*/*.ini\n  variants/*/*/platformio.ini\n"
+        esp = (
+            "[esp32_common]\nplatform =\n  # TODO renovate\n"
+            "  https://github.com/pioarduino/platform-espressif32/releases/download/55.03.312-1/platform-espressif32.zip\n"
+        )
+        boards = BOARD_INI.replace(
+            "[env:tbeam]\n", "[env:tbeam]\nextends = esp32_common\n"
+        ).replace("[env:nrf52_promicro_diy_e28]\n", "[env:nrf52_promicro_diy_e28]\nplatform = platformio/nordicnrf52@11.0.0\n")
+        files = {
+            "platformio.ini": root_ini,
+            "variants/esp32/esp32-common.ini": esp,
+            "variants/diy/e28/platformio.ini": boards,
+        }
+        engines = {
+            "pioarduino/platform-espressif32/55.03.312-1": ">=6.2.0",
+            "platformio/platform-nordicnrf52/v11.0.0": "^6",
+        }
+        calls = []
+
+        def github(url, timeout=15):
+            calls.append(url)
+            base = "https://api.github.com/repos/lazynoda/meshtastic-firmware/git/trees/"
+            if url == base + NODASTIC_SHA:
+                tree = [
+                    {"path": "variants", "type": "tree", "sha": VARIANTS_SHA},
+                    {"path": "platformio.ini", "type": "blob", "sha": "c" * 40, "size": 80},
+                ]
+                return json.dumps({"tree": tree}), {}
+            if url == base + VARIANTS_SHA + "?recursive=1":
+                tree = [
+                    {"path": "diy/e28/platformio.ini", "type": "blob", "sha": INI_BLOB, "size": 300},
+                    {"path": "esp32/esp32-common.ini", "type": "blob", "sha": "e" * 40, "size": 200},
+                ]
+                return json.dumps({"truncated": False, "tree": tree}), {}
+            raw = f"https://raw.githubusercontent.com/lazynoda/meshtastic-firmware/{NODASTIC_SHA}/"
+            if url.startswith(raw) and url[len(raw):] in files:
+                return files[url[len(raw):]], {}
+            for key, engine in engines.items():
+                if url == f"https://raw.githubusercontent.com/{key}/platform.json":
+                    return json.dumps({"engines": {"platformio": engine}}), {}
+            raise AssertionError(f"unexpected URL {url}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            config = temp_config(Path(tmp))
+            source = get_firmware(ROOT, "nodastic")
+            with patch("meshtastic_builder.firmware._http_get", github):
+                _devices, platformio, from_firmware = catalog_for(config, source, NODASTIC_SHA)
+                first = len(calls)
+                self.assertEqual(platformio_for_build(config, source, NODASTIC_SHA, "tbeam"), "6.2.0")
+            self.assertTrue(from_firmware)
+            self.assertEqual(platformio, {"tbeam": "6.2.0", "nrf52_promicro_diy_e28": "6.1.19"})
+            self.assertEqual(len(calls), first)  # the worker's lookup is served from SQLite
+            with connection(config) as conn:
+                stored = json.loads(conn.execute("SELECT devices_json FROM board_catalogs").fetchone()[0])
+            self.assertEqual(stored["format"], 5)
+            self.assertEqual(stored["platformio"]["tbeam"], "6.2.0")
+
+    def test_platformio_lookup_down_serves_boards_but_stores_nothing(self):
+        from meshtastic_builder import platformio_versions
+        from meshtastic_builder.board_catalog import catalog_for
+
+        platformio_versions._engine_cache.clear()
+
+        def github(url, timeout=15):
+            base = "https://api.github.com/repos/lazynoda/meshtastic-firmware/git/trees/"
+            if url == base + NODASTIC_SHA:
+                tree = [
+                    {"path": "variants", "type": "tree", "sha": VARIANTS_SHA},
+                    {"path": "platformio.ini", "type": "blob", "sha": "c" * 40, "size": 80},
+                ]
+                return json.dumps({"tree": tree}), {}
+            if url.endswith("/platformio.ini") and "/variants/" not in url:
+                return "[platformio]\nextra_configs = variants/*/*/platformio.ini\n", {}
+            if url.endswith("/platform.json"):
+                raise TimeoutError("down")
+            body = BOARD_INI.replace("[env:tbeam]\n", "[env:tbeam]\nplatform = platformio/espressif32@6.13.0\n")
+            if url.endswith("variants/diy/e28/platformio.ini"):
+                return body, {}
+            return fake_github(url, timeout)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            config = temp_config(Path(tmp))
+            source = get_firmware(ROOT, "nodastic")
+            with patch("meshtastic_builder.firmware._http_get", github):
+                devices, platformio, from_firmware = catalog_for(config, source, NODASTIC_SHA)
+            self.assertTrue(from_firmware)
+            self.assertEqual(len(devices), 2)
+            self.assertIsNone(platformio["tbeam"])
+            with connection(config) as conn:
+                self.assertEqual(conn.execute("SELECT COUNT(*) FROM board_catalogs").fetchone()[0], 0)
+
+    def test_board_needing_a_core_the_image_lacks_is_listed_but_refused(self):
+        from meshtastic_builder.board_catalog import get_device_for_build
+        from meshtastic_builder.devices import Device
+        from meshtastic_builder.app import device_json
+
+        board = Device(id="tbeam", label="LILYGO T-Beam", platformio_env="tbeam", family="esp32", enabled=True)
+        source = get_firmware(ROOT, "nodastic")
+        payload = device_json(board, source, "2.8.1", {"tbeam": "unsupported"})
+        self.assertEqual(payload["unavailable"]["reason"], "platformio_unsupported")
+        self.assertNotIn("unavailable", device_json(board, source, "2.8.1", {"tbeam": "6.2.0"}))
+        with tempfile.TemporaryDirectory() as tmp:
+            config = temp_config(Path(tmp))
+            with patch(
+                "meshtastic_builder.board_catalog.catalog_for", return_value=([board], {"tbeam": "unsupported"}, True)
+            ):
+                with self.assertRaisesRegex(ValueError, "PlatformIO"):
+                    get_device_for_build(config, source, NODASTIC_SHA, "tbeam", version="2.8.1")
+
     def test_github_down_falls_back_to_the_static_list(self):
         from meshtastic_builder.board_catalog import devices_for
         from meshtastic_builder.devices import enabled_devices
