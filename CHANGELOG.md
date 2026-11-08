@@ -4,6 +4,38 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-11-08
+
+### Fixed
+
+- ESP32 boards on upstream 2.8.2, Jentastic 2.8.201 and Nodastic failed before
+  compiling: their ESP32 platform (pioarduino 55.03.312-1) requires
+  PlatformIO 6.2.0, and the builder only had 6.1.19.
+
+### Changed
+
+- The builder image carries PlatformIO 6.1.19 and 6.2.0, and each board is
+  built with the lowest one its platform accepts. Which one is read from the
+  firmware's `platformio.ini` and the platform's `platform.json` when the board
+  list of a version is read, and stored with it. The newest is not always
+  right: 6.2.0 breaks the older ESP32 platform of 2.8.1 and Jentastic 2.8.105
+  at link time. When it cannot be read, the build starts on 6.1.19 and moves
+  up only if PlatformIO refuses the platform, which it does before compiling.
+- A board whose platform needs a PlatformIO the builder does not carry is
+  listed as unavailable instead of failing.
+- `BUILD_INFO.txt` and the build log name the PlatformIO version that ran.
+- The tools that the new ESP32 platform downloads through Espressif's own
+  installer (esptool, the ESP-IDF toolchains) are kept in the shared download
+  volume too, so those builds no longer need GitHub once the first one has run.
+
+### Upgrading
+
+- Builder image: add the new layer (`PLATFORMIO_EXTRA_CORES`) and the new
+  `build_firmware.sh`. Both come after the prewarm, so an overlay on the
+  current image is enough.
+- The stored board lists are read again once (`CATALOG_FORMAT` 5): the first
+  page load of each version takes a few seconds longer.
+
 ## [1.6.1] - 2026-11-07
 
 ### Changed
@@ -446,6 +478,7 @@ First tagged release: the version running on
 
 - AGPL-3.0-only. The firmware patches stay under GPL-3.0.
 
+[1.7.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/lazynoda/meshtastic-builder/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.4.1...v1.5.0
