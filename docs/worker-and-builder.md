@@ -188,6 +188,22 @@ that is deliberate:
   removes after three hours.
 - PlatformIO drops archives no build has used for 30 days.
 
+The same volume also holds, in its `idf-dist/` subdirectory, the archives
+Espressif's `idf_tools.py` downloads. The pioarduino ESP32 platform from
+55.03.312 on (upstream 2.8.2, Jentastic 2.8.201) installs some tools that way
+(esptool, the ESP-IDF toolchains): straight from GitHub releases into
+`/opt/platformio/dist`, bypassing PlatformIO's store. Without sharing that
+directory every such build needs GitHub, and a GitHub outage (HTTP 504 on
+release assets, seen in Nov 2026) fails them with
+`No module named 'esptool'`. `build-firmware` points `/opt/platformio/dist` at
+`idf-dist/`, seeding it once with the archives the image already holds.
+Sharing it is safe for the same reasons: `idf_tools.py` checks each archive's
+sha256 before using it (deleting and downloading again one that does not
+match) and writes new ones as `<name>.tmp`, renamed only once the checksum
+matches; `build-firmware` drops `.tmp` files older than three hours.
+PlatformIO's 30-day cleanup does not touch `idf-dist/`, which is small
+(a few hundred MB).
+
 Empty `MB_PIO_DOWNLOAD_VOLUME` turns it off; an invalid name or an unwritable
 volume also turns it off rather than failing builds. To empty it, with no build
 running: `docker volume rm <volume>`.

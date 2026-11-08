@@ -364,7 +364,9 @@ def shared_downloads_block() -> str:
     text = SCRIPT.read_text(encoding="utf-8")
     match = re.search(r"\nuse_shared_downloads\(\) \{\n.*?\n\}\n", text, re.S)
     assert match, "use_shared_downloads not found in build_firmware.sh"
-    return match.group(0)
+    idf = re.search(r"\nIDF_DIST_SUBDIR=.*?\nshare_idf_tool_downloads\(\) \{\n.*?\n\}\n", text, re.S)
+    assert idf, "share_idf_tool_downloads not found in build_firmware.sh"
+    return idf.group(0) + match.group(0)
 
 
 @unittest.skipUnless(Path(BASH).exists(), "bash not available")
@@ -425,12 +427,65 @@ class SharedDownloadsTests(unittest.TestCase):
         self.assertTrue(fresh.exists())
         self.assertTrue(done.exists())
 
+    def test_idf_tool_downloads_are_shared_and_seeded_from_the_image(self):
+        dist = self.core / "dist"
+        dist.mkdir()
+        (dist / "esptool.zip").write_bytes(b"from-image")
+        (dist / "ninja.zip").write_bytes(b"image-ninja")
+        (dist / "half.zip.tmp").write_bytes(b"partial")
+        idf = self.shared / "idf-dist"
+        idf.mkdir(parents=True)
+        (idf / "ninja.zip").write_bytes(b"shared-ninja")  # already shared: kept as is
+        proc = self.run_block(self.shared)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(dist.is_symlink())
+        self.assertEqual(dist.resolve(), idf.resolve())
+        self.assertEqual((idf / "esptool.zip").read_bytes(), b"from-image")
+        self.assertEqual((idf / "ninja.zip").read_bytes(), b"shared-ninja")
+        self.assertFalse((idf / "half.zip.tmp").exists())
+        self.assertEqual(sorted(p.name for p in idf.iterdir()), ["esptool.zip", "ninja.zip"])
+        self.assertIn("ESP-IDF tool downloads:", proc.stdout)
+        self.assertIn("(2 archives)", proc.stdout)
+        # The idf subdirectory is not counted as a PlatformIO archive.
+        self.assertIn("Package downloads: ", proc.stdout)
+        self.assertIn("(0 archives", proc.stdout)
+
+    def test_idf_tool_downloads_without_a_dist_in_the_image(self):
+        proc = self.run_block(self.shared)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        dist = self.core / "dist"
+        self.assertTrue(dist.is_symlink())
+        self.assertTrue((self.shared / "idf-dist").is_dir())
+
+    def test_stale_partial_idf_downloads_are_dropped_and_fresh_ones_kept(self):
+        idf = self.shared / "idf-dist"
+        idf.mkdir(parents=True)
+        old, fresh = idf / "a.zip.tmp", idf / "b.zip.tmp"
+        old.write_bytes(b"x")
+        fresh.write_bytes(b"x")
+        four_hours_ago = time.time() - 4 * 3600
+        os.utime(old, (four_hours_ago, four_hours_ago))
+        proc = self.run_block(self.shared)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertFalse(old.exists())
+        self.assertTrue(fresh.exists())
+
+    def test_running_twice_changes_nothing(self):
+        (self.core / "dist").mkdir()
+        (self.core / "dist" / "esptool.zip").write_bytes(b"z")
+        self.assertEqual(self.run_block(self.shared).returncode, 0)
+        proc = self.run_block(self.shared)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue((self.core / "dist").is_symlink())
+        self.assertEqual((self.core / "dist" / "esptool.zip").read_bytes(), b"z")
+
     def test_without_a_shared_dir_nothing_changes(self):
         proc = self.run_block()
         self.assertEqual(proc.returncode, 0, proc.stderr)
         dl = self.core / ".cache" / "downloads"
         self.assertTrue(dl.is_dir())
         self.assertFalse(dl.is_symlink())
+        self.assertFalse((self.core / "dist").exists())
 
     @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can write anywhere")
     def test_an_unwritable_shared_dir_costs_speed_not_the_build(self):

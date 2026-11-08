@@ -209,8 +209,39 @@ use_shared_downloads() {
   rm -rf "${dl}"
   ln -s "${shared}" "${dl}"
   echo "Package downloads: ${shared} ($(find "${shared}" -maxdepth 1 -type f ! -name '*.lock' ! -name usage.db ! -name 'tmp*' | wc -l) archives, $(du -sh "${shared}" 2>/dev/null | cut -f1))"
+  share_idf_tool_downloads "${shared}/${IDF_DIST_SUBDIR}" "${core}/dist"
 }
 
+# The pioarduino ESP32 platform (55.03.312+) installs some tools itself through
+# Espressif's idf_tools.py (esptool, the ESP-IDF toolchains), which downloads
+# straight from GitHub releases into <core>/dist, not through PlatformIO's
+# download store. Share that directory too, in its own subdirectory of the same
+# volume, so a GitHub outage only hurts the first build of a new platform.
+# Safe to share: idf_tools.py checks each archive's sha256 before using it
+# (a wrong or broken one is deleted and downloaded again) and writes new ones
+# as <name>.tmp, renamed only once the checksum matches.
+IDF_DIST_SUBDIR="idf-dist"
+share_idf_tool_downloads() {
+  local shared="$1" dist="$2" f name
+  if ! mkdir -p "${shared}" 2>/dev/null || [[ ! -w "${shared}" ]]; then
+    echo "ESP-IDF tool downloads: ${shared} is not writable; downloading them for this build only."
+    return 0
+  fi
+  find "${shared}" -maxdepth 1 -type f -name '*.tmp' -mmin +180 -delete 2>/dev/null || true
+  if [[ -d "${dist}" && ! -L "${dist}" ]]; then
+    # Archives the image already holds (prewarmed) seed the shared copy, each
+    # through a temporary name, so an interrupted copy never looks finished.
+    for f in "${dist}"/*; do
+      [[ -f "${f}" ]] || continue
+      name="$(basename "${f}")"
+      [[ "${name}" == *.tmp || -e "${shared}/${name}" ]] && continue
+      cp "${f}" "${shared}/.${name}.seed.tmp" && mv -f "${shared}/.${name}.seed.tmp" "${shared}/${name}" || true
+    done
+    rm -rf "${dist}"
+  fi
+  ln -sfn "${shared}" "${dist}"
+  echo "ESP-IDF tool downloads: ${shared} ($(find "${shared}" -maxdepth 1 -type f ! -name '*.tmp' | wc -l) archives)"
+}
 
 # PlatformIO Core for this build. The image carries several (see
 # docker/builder.Dockerfile): `pio` is the lowest, the others live in their own
