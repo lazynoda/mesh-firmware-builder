@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.8.0] - 2026-11-10
 
 ### Changed
 
@@ -19,6 +19,13 @@ All notable changes to this project are documented here. The format follows
   firmware selector ("Meshtastic® Oficial") and in the Meshtastic® UI option.
 - Downloaded ZIPs are named `mesh-firmware-builder-<firmware>-<version>-<env>-<id>.zip`,
   and requests to GitHub identify themselves as `mesh-firmware-builder/<version>`.
+
+### Upgrading
+
+- No database migration and no builder image change: rebuild and restart
+  `web` and `worker`.
+- An instance that was published under the old name only needs its own
+  `MB_BASE_URL` (and its proxy's host names) updated if it moves domain too.
 
 ## [1.7.0] - 2026-11-08
 
@@ -494,6 +501,7 @@ First tagged release: the version running on
 
 - AGPL-3.0-only. The firmware patches stay under GPL-3.0.
 
+[1.8.0]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.5.0...v1.6.0
