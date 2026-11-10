@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- The project is now **Mesh Firmware Builder**, to follow the
+  [Meshtastic® trademark rules](https://meshtastic.org/docs/legal/licensing-and-trademark/):
+  a third-party service may not carry the trademark in its name or its domain.
+  The repository moved to `lazynoda/mesh-firmware-builder` (GitHub redirects the
+  old URL) and the public instance to <https://builder.mesh.lazynoda.es>.
+- Every page footer carries the trademark attribution statement, says the site
+  is not affiliated with or endorsed by the Meshtastic project, and links to
+  meshtastic.org. The trademark gets its ® on its first mention, in the
+  firmware selector ("Meshtastic® Oficial") and in the Meshtastic® UI option.
+- Downloaded ZIPs are named `mesh-firmware-builder-<firmware>-<version>-<env>-<id>.zip`,
+  and requests to GitHub identify themselves as `mesh-firmware-builder/<version>`.
+
 ## [1.7.0] - 2026-11-08
 
 ### Fixed
@@ -146,7 +162,7 @@ All notable changes to this project are documented here. The format follows
 - Jentastic: LILYGO T-Echo is marked unavailable too (the firmware overflows
   flash by ~76 KB on v2.8.104), and every Jentastic entry is lifted from
   v2.8.105 on, the release that fits them
-  ([#3](https://github.com/lazynoda/meshtastic-builder/issues/3)).
+  ([#3](https://github.com/lazynoda/mesh-firmware-builder/issues/3)).
 - A build that does not fit in the device's flash no longer tells the user to
   drop options or pick another device: the size comes from the firmware, not
   from their settings.
@@ -364,7 +380,7 @@ All notable changes to this project are documented here. The format follows
 - `sync-devices` regenerates `data/devices.json` from a firmware checkout,
   keeping existing ids and labels. Added LILYGO T-Connect Pro.
 - nRF54L15 boards are excluded until they can be flashed from the ZIP
-  ([#2](https://github.com/lazynoda/meshtastic-builder/issues/2)).
+  ([#2](https://github.com/lazynoda/mesh-firmware-builder/issues/2)).
 
 ### Interface
 
@@ -478,22 +494,22 @@ First tagged release: the version running on
 
 - AGPL-3.0-only. The firmware patches stay under GPL-3.0.
 
-[1.7.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.6.1...v1.7.0
-[1.6.1]: https://github.com/lazynoda/meshtastic-builder/compare/v1.6.0...v1.6.1
-[1.6.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.5.0...v1.6.0
-[1.5.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.4.1...v1.5.0
-[1.4.1]: https://github.com/lazynoda/meshtastic-builder/compare/v1.4.0...v1.4.1
-[1.4.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.3.1...v1.4.0
-[1.3.1]: https://github.com/lazynoda/meshtastic-builder/compare/v1.3.0...v1.3.1
-[1.3.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.2.5...v1.3.0
-[1.2.5]: https://github.com/lazynoda/meshtastic-builder/compare/v1.2.4...v1.2.5
-[1.2.4]: https://github.com/lazynoda/meshtastic-builder/compare/v1.2.3...v1.2.4
-[1.2.3]: https://github.com/lazynoda/meshtastic-builder/compare/v1.2.2...v1.2.3
-[1.2.2]: https://github.com/lazynoda/meshtastic-builder/compare/v1.2.1...v1.2.2
-[1.2.1]: https://github.com/lazynoda/meshtastic-builder/compare/v1.2.0...v1.2.1
-[1.2.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.1.3...v1.2.0
-[1.1.3]: https://github.com/lazynoda/meshtastic-builder/compare/v1.1.2...v1.1.3
-[1.1.2]: https://github.com/lazynoda/meshtastic-builder/compare/v1.1.1...v1.1.2
-[1.1.1]: https://github.com/lazynoda/meshtastic-builder/compare/v1.1.0...v1.1.1
-[1.1.0]: https://github.com/lazynoda/meshtastic-builder/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/lazynoda/meshtastic-builder/releases/tag/v1.0.0
+[1.7.0]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.6.1...v1.7.0
+[1.6.1]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.6.0...v1.6.1
+[1.6.0]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.4.1...v1.5.0
+[1.4.1]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.3.1...v1.4.0
+[1.3.1]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.2.5...v1.3.0
+[1.2.5]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.2.4...v1.2.5
+[1.2.4]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.2.3...v1.2.4
+[1.2.3]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.2.2...v1.2.3
+[1.2.2]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.1.3...v1.2.0
+[1.1.3]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.1.2...v1.1.3
+[1.1.2]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/lazynoda/mesh-firmware-builder/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/lazynoda/mesh-firmware-builder/releases/tag/v1.0.0

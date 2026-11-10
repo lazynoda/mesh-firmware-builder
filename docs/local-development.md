@@ -98,7 +98,7 @@ The worker service mounts the host Docker socket (`MB_DOCKER_SOCKET`, default `/
 If you want persistent local processes during development:
 
 ```bash
-tmux new -s meshtastic-builder
+tmux new -s mesh-firmware-builder
 ```
 
 Suggested panes:
@@ -111,5 +111,5 @@ MB_BUILDER_MODE=fake python3 -m meshtastic_builder.worker
 Kill the session when done:
 
 ```bash
-tmux kill-session -t meshtastic-builder
+tmux kill-session -t mesh-firmware-builder
 ```

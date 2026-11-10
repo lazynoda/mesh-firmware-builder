@@ -65,7 +65,7 @@ def gate_version(build: dict[str, object]) -> str:
 def build_info(build: dict[str, object], source: FirmwareSource) -> str:
     return "\n".join(
         [
-            "Meshtastic Builder Artifact",
+            "Mesh Firmware Builder Artifact",
             f"created_at={iso_now()}",
             f"build_token={build['public_token']}",
             f"device_id={build['device_id']}",

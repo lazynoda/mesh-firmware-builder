@@ -1,13 +1,13 @@
-# Meshtastic Builder
+# Mesh Firmware Builder
 
-[![CI](https://github.com/lazynoda/meshtastic-builder/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/lazynoda/meshtastic-builder/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/lazynoda/meshtastic-builder)](https://github.com/lazynoda/meshtastic-builder/releases/latest)
-[![License](https://img.shields.io/github/license/lazynoda/meshtastic-builder)](LICENSE)
-[![Website](https://img.shields.io/website?url=https%3A%2F%2Fbuilder.meshtastic.lazynoda.es%2Fapi%2Fhealth)](https://builder.meshtastic.lazynoda.es)
-[![Firmwares built](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fbuilder.meshtastic.lazynoda.es%2Fapi%2Fhealth&query=%24.builds.succeeded&label=firmwares%20built)](https://builder.meshtastic.lazynoda.es)
+[![CI](https://github.com/lazynoda/mesh-firmware-builder/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/lazynoda/mesh-firmware-builder/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/lazynoda/mesh-firmware-builder)](https://github.com/lazynoda/mesh-firmware-builder/releases/latest)
+[![License](https://img.shields.io/github/license/lazynoda/mesh-firmware-builder)](LICENSE)
+[![Website](https://img.shields.io/website?url=https%3A%2F%2Fbuilder.mesh.lazynoda.es%2Fapi%2Fhealth)](https://builder.mesh.lazynoda.es)
+[![Firmwares built](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fbuilder.mesh.lazynoda.es%2Fapi%2Fhealth&query=%24.builds.succeeded&label=firmwares%20built)](https://builder.mesh.lazynoda.es)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-lazynoda-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/lazynoda)
 
-Custom [Meshtastic](https://meshtastic.org) firmware, built with your settings
+Custom [Meshtastic®](https://meshtastic.org) firmware, built with your settings
 already inside.
 
 Stock firmware boots with no region, no names, no channels and default
@@ -15,7 +15,7 @@ security, and you configure it afterwards over Bluetooth or USB. Meshtastic
 Builder compiles those settings into the firmware instead: pick a device and a
 firmware version, fill in a form, and download a ZIP ready to flash.
 
-**Public instance:** <https://builder.meshtastic.lazynoda.es>
+**Public instance:** <https://builder.mesh.lazynoda.es>
 
 - No account and no email. Each build gets a private link, and its ZIP stays
   downloadable for 7 days.
@@ -73,8 +73,8 @@ roughly 7 to 26 minutes at 1 CPU, depending on the chip; later builds of the
 same board and version reuse the cache and take a few minutes.
 
 ```bash
-git clone https://github.com/lazynoda/meshtastic-builder.git
-cd meshtastic-builder
+git clone https://github.com/lazynoda/mesh-firmware-builder.git
+cd mesh-firmware-builder
 cp .env.example .env    # set MB_BASE_URL to your public URL
 
 # One-off, about an hour: clones the firmware and prewarms the toolchains.
@@ -139,5 +139,11 @@ The patches in `docker/patches/` modify the Meshtastic firmware and stay under
 its license, GPL-3.0. GPL-3.0 section 13 allows combining them with this
 AGPL-3.0 project.
 
-Meshtastic is a registered trademark of Meshtastic LLC. This project is not
-affiliated with or endorsed by Meshtastic LLC.
+## Trademark
+
+Meshtastic® is a registered trademark of Meshtastic LLC. Meshtastic software
+components are released under various licenses, see
+[GitHub](https://github.com/meshtastic) for details. No warranty is provided -
+use at your own risk.
+
+This project is not affiliated with or endorsed by the Meshtastic project.

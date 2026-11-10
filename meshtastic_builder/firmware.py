@@ -43,7 +43,7 @@ def _http_get(url: str, timeout: int = 15) -> tuple[str, Message]:
         url,
         headers={
             "Accept": "application/json,text/plain,*/*",
-            "User-Agent": f"meshtastic-builder/{__version__}",
+            "User-Agent": f"mesh-firmware-builder/{__version__}",
         },
     )
     with urllib.request.urlopen(req, timeout=timeout) as response:

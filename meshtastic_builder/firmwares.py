@@ -172,7 +172,7 @@ def _parse_unavailable(firmware_id: str, raw: object) -> tuple[UnavailableBoard,
 # keeps building upstream exactly as before.
 UPSTREAM_ENTRY = {
     "id": DEFAULT_FIRMWARE_ID,
-    "name": "Meshtastic",
+    "name": "Meshtastic® Oficial",
     "url": "https://github.com/meshtastic/firmware",
     "versioning": VERSIONING_TAGS,
 }

@@ -302,7 +302,7 @@ class MeshtasticBuilderHandler(BaseHTTPRequestHandler):
         label = row["firmware_tag"]
         if firmware_id != DEFAULT_FIRMWARE_ID and row.get("firmware_version") and label == firmware_id:
             label = f"{row['firmware_version']}-{str(row['firmware_sha'])[:7]}"
-        filename = f"{firmware_id}-{label}-{row['platformio_env']}-{token[:8]}.zip"
+        filename = f"mesh-firmware-builder-{firmware_id}-{label}-{row['platformio_env']}-{token[:8]}.zip"
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "application/zip")
         self.send_header("Content-Length", str(path.stat().st_size))
@@ -350,7 +350,7 @@ def run_server(config: Config | None = None) -> None:
     initialize_database(config)
     MeshtasticBuilderHandler.config = config
     server = ThreadingHTTPServer((config.host, config.port), MeshtasticBuilderHandler)
-    print(f"Meshtastic Builder listening on http://{config.host}:{config.port}")
+    print(f"Mesh Firmware Builder listening on http://{config.host}:{config.port}")
     server.serve_forever()
 
 

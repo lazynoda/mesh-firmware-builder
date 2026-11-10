@@ -102,7 +102,7 @@ class CatalogTests(unittest.TestCase):
             item = jentastic.unavailable(env, "v2.8.104")
             self.assertIsNotNone(item, env)
             self.assertEqual(item.reason, "firmware_too_big")
-            self.assertEqual(item.issue, "https://github.com/lazynoda/meshtastic-builder/issues/3")
+            self.assertEqual(item.issue, "https://github.com/lazynoda/mesh-firmware-builder/issues/3")
             self.assertEqual(item.fixed_since, "2.8.105")
             # Jentastic's fix for issue #3 ships in 2.8.105.
             self.assertIsNone(jentastic.unavailable(env, "v2.8.105"), env)
@@ -543,7 +543,7 @@ class BoardCatalogTests(unittest.TestCase):
         from meshtastic_builder.board_catalog import devices_for
         from meshtastic_builder.firmwares import UnavailableBoard
 
-        issue = "https://github.com/lazynoda/meshtastic-builder/issues/3"
+        issue = "https://github.com/lazynoda/mesh-firmware-builder/issues/3"
         source = replace(
             get_firmware(ROOT, "nodastic"),
             unavailable_boards=(UnavailableBoard("nrf52_promicro_diy_e28", "firmware_too_big", issue),),
@@ -582,7 +582,7 @@ class BoardCatalogTests(unittest.TestCase):
         from meshtastic_builder.board_catalog import devices_for
         from meshtastic_builder.firmwares import UnavailableBoard
 
-        issue = "https://github.com/lazynoda/meshtastic-builder/issues/3"
+        issue = "https://github.com/lazynoda/mesh-firmware-builder/issues/3"
         with tempfile.TemporaryDirectory() as tmp:
             config = temp_config(Path(tmp))
             cache = userprefs_cache_path(config, NODASTIC_SHA, "nodastic")
@@ -751,7 +751,7 @@ class MeshtasticUiTests(unittest.TestCase):
             self.assertNotIn("t-deck-tft", listed)
             self.assertEqual(mui_row["platformio_env"], "t-deck-tft")
             self.assertEqual(mui_row["device_id"], "t-deck")
-            self.assertEqual(mui_row["device_label"], "LILYGO T-Deck (Meshtastic UI)")
+            self.assertEqual(mui_row["device_label"], "LILYGO T-Deck (Meshtastic® UI)")
             self.assertEqual(plain_row["platformio_env"], "t-deck")
             self.assertEqual(plain_row["device_label"], "LILYGO T-Deck")
 

@@ -1,4 +1,4 @@
-# Meshtastic Builder Documentation
+# Mesh Firmware Builder Documentation
 
 New here? Start with the [project README](../README.md).
 

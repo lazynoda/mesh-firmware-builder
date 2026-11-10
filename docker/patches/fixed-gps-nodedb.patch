@@ -1,4 +1,4 @@
-Fixed-position build fix for Meshtastic Builder.
+Fixed-position build fix for Mesh Firmware Builder.
 
 Upstream commit 94bb21ecc ("2.8: NodeDB shrink, decoupling, and restructuring",
 PR #10413) removed the local

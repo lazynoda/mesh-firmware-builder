@@ -48,7 +48,7 @@ UNAVAILABLE_REASONS = {
 }
 # Shown with a platformio_unsupported board. No firmware has needed it yet, so
 # there is no specific issue to point at; the fix is adding that Core to the image.
-PLATFORMIO_UNSUPPORTED_ISSUE = "https://github.com/lazynoda/meshtastic-builder/issues"
+PLATFORMIO_UNSUPPORTED_ISSUE = "https://github.com/lazynoda/mesh-firmware-builder/issues"
 
 # Upper bounds on what one commit may make us download. Upstream has ~200
 # platformio.ini files under variants/ and ~220 ini files loaded in total;
@@ -317,11 +317,11 @@ def get_device_for_build(
     for device in devices:
         if device.id == device_id:
             if mui and hybrid:
-                raise ValueError("Meshtastic UI y la variante hibrida no se pueden combinar.")
+                raise ValueError("Meshtastic® UI y la variante hibrida no se pueden combinar.")
             if mui:
                 if not device.mui_env:
-                    raise ValueError(f"{device.label} no tiene Meshtastic UI en esta version de {source.name}.")
-                device = replace(device, platformio_env=device.mui_env, label=f"{device.label} (Meshtastic UI)")
+                    raise ValueError(f"{device.label} no tiene Meshtastic® UI en esta version de {source.name}.")
+                device = replace(device, platformio_env=device.mui_env, label=f"{device.label} (Meshtastic® UI)")
             if hybrid:
                 if not device.hybrid_env:
                     raise ValueError(f"{device.label} no tiene variante hibrida en esta version de {source.name}.")

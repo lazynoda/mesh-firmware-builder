@@ -1,4 +1,4 @@
-Extended userPrefs support for Meshtastic Builder.
+Extended userPrefs support for Mesh Firmware Builder.
 
 Upstream firmware turns every key in userPrefs.jsonc into a compiler define
 (see bin/platformio-custom.py), but installDefaultConfig() only reads a subset

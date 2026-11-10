@@ -1,6 +1,6 @@
 # Architecture
 
-Meshtastic Builder is split into three runtime responsibilities:
+Mesh Firmware Builder is split into three runtime responsibilities:
 
 1. Web/API process
 2. Queue worker

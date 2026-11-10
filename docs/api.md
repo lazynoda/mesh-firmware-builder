@@ -90,7 +90,7 @@ Response:
       "family": "nrf52840",
       "unavailable": {
         "reason": "firmware_too_big",
-        "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+        "issue": "https://github.com/lazynoda/mesh-firmware-builder/issues/3",
         "fixedSinceFirmwareVersion": "2.8.105"
       }
     }
@@ -127,7 +127,7 @@ default one.
 {
   "default": "meshtastic",
   "firmwares": [
-    {"id": "meshtastic", "name": "Meshtastic Oficial", "url": "https://github.com/meshtastic/firmware", "versioning": "tags", "branch": null},
+    {"id": "meshtastic", "name": "Meshtastic® Oficial", "url": "https://github.com/meshtastic/firmware", "versioning": "tags", "branch": null},
     {"id": "nodastic", "name": "Nodastic", "url": "https://github.com/lazynoda/meshtastic-firmware", "versioning": "branch", "branch": "nodastic"}
   ]
 }
@@ -209,7 +209,7 @@ Request:
 
 `mui` is optional (`true` or `false`, default `false`). With `true` the build
 compiles the board's Meshtastic UI env (`t-deck-tft` for `t-deck`) and stores
-it as the build's `platformio_env`, with ` (Meshtastic UI)` appended to the
+it as the build's `platformio_env`, with ` (Meshtastic® UI)` appended to the
 board label. It is refused for a board without `"mui": true` in
 `/api/devices`.
 

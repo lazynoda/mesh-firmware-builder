@@ -1,20 +1,20 @@
 const DICT = {
   es: {
-    "page.title": "Meshtastic Builder",
-    "header.tagline": "Firmware Meshtastic a medida, sin editar JSON a mano",
+    "page.title": "Mesh Firmware Builder",
+    "header.tagline": "Firmware Meshtastic® a medida, sin editar JSON a mano",
     "footer.trademark":
-      "Meshtastic es una marca registrada de Meshtastic LLC. Este proyecto no esta afiliado ni respaldado por Meshtastic LLC, ni por ninguna de las marcas de los dispositivos listados. Es un proyecto hecho por aficion.",
+      "Meshtastic® es una marca registrada de Meshtastic LLC. Los componentes de software de Meshtastic® se publican bajo varias licencias, ver <a href=\"https://github.com/meshtastic\" target=\"_blank\" rel=\"noreferrer\">GitHub</a>. Sin garantia: usalo bajo tu propia responsabilidad. Este sitio no esta afiliado ni respaldado por el proyecto Meshtastic®, ni por ninguna de las marcas de los dispositivos listados. Es un proyecto hecho por aficion. Proyecto oficial: <a href=\"https://meshtastic.org\" target=\"_blank\" rel=\"noreferrer\">meshtastic.org</a>.",
     "footer.source":
-      "<a href=\"https://github.com/lazynoda/meshtastic-builder\" target=\"_blank\" rel=\"noreferrer\">Codigo fuente</a> bajo licencia AGPL-3.0.",
+      "<a href=\"https://github.com/lazynoda/mesh-firmware-builder\" target=\"_blank\" rel=\"noreferrer\">Codigo fuente</a> bajo licencia AGPL-3.0.",
 
     "step1.title": "Firmware y dispositivo",
     "step1.device": "Dispositivo",
-    "step1.mui": "Meshtastic UI",
+    "step1.mui": "Meshtastic® UI",
     "step1.hybrid": "JenCore + RNode (hibrido)",
     "step1.hybridHint":
       "Compila la variante hibrida de Jentastic, con JenCore y RNode activados. JenCore: el nodo escucha y repite tambien el trafico JenCore y tiene canales JC:. RNode: puede hacer de RNode para Reticulum. Es experimental y ocupa mas memoria.",
     "help.label": "Ayuda",
-    "step1.muiHint": "Compila la variante con Meshtastic UI (MUI), la interfaz tactil para la pantalla de la placa. Es lo mismo que el interruptor del Web Flasher.",
+    "step1.muiHint": "Compila la variante con Meshtastic® UI (MUI), la interfaz tactil para la pantalla de la placa. Es lo mismo que el interruptor del Web Flasher.",
     "step1.devicePlaceholder": "Busca un dispositivo",
     "step1.firmware": "Firmware",
     "step1.version": "Version de firmware",
@@ -24,12 +24,12 @@ const DICT = {
     "step1.revokedHint": "{firmware} retiró esta versión. Usa {tag}.",
     "step1.revokedHintNoReplacement": "{firmware} retiró esta versión.",
     "device.unavailable": "no disponible",
-    "device.unavailableHint": "No disponible con {firmware} por ahora: {reason}. Estamos trabajando en ello ({issue}). Mientras tanto puedes compilarlo con Meshtastic Oficial.",
+    "device.unavailableHint": "No disponible con {firmware} por ahora: {reason}. Estamos trabajando en ello ({issue}). Mientras tanto puedes compilarlo con Meshtastic® Oficial.",
     "device.unavailable.firmware_too_big": "el firmware no cabe en la memoria flash de esta placa",
     "device.unavailable.platformio_unsupported": "esta version necesita una version de PlatformIO que el compilador aun no tiene",
     "device.unavailableFixedHint": "No disponible con {firmware} {version}: {reason}. Funciona desde {firmware} {tag}.",
     "device.unavailableComingHint":
-      "No disponible con {firmware} {version}: {reason}. Funcionara a partir de la version {fixed}, que aun no ha salido ({issue}). Mientras tanto puedes compilarlo con Meshtastic Oficial.",
+      "No disponible con {firmware} {version}: {reason}. Funcionara a partir de la version {fixed}, que aun no ha salido ({issue}). Mientras tanto puedes compilarlo con Meshtastic® Oficial.",
 
     "step2.title": "Nodo",
     "step2.longName": "Nombre largo",
@@ -272,7 +272,7 @@ const DICT = {
     "nav.builder": "Volver al compilador",
     "about.whatTitle": "Que es esto",
     "about.what":
-      "Firmware Meshtastic compilado con tus preferencias ya dentro, en lugar del firmware de serie que llega con la region, los nombres, la seguridad y casi todo lo demas sin configurar. Rellenas el formulario, el servidor compila el firmware para tu dispositivo y te descargas el ZIP.",
+      "Firmware Meshtastic® compilado con tus preferencias ya dentro, en lugar del firmware de serie que llega con la region, los nombres, la seguridad y casi todo lo demas sin configurar. Rellenas el formulario, el servidor compila el firmware para tu dispositivo y te descargas el ZIP.",
     "about.whereTitle": "Donde se ejecuta",
     "about.where":
       "La pagina y el compilador corren en un VPS de Oracle en Madrid gestionado por <a href=\"https://t.me/lazynoda\" target=\"_blank\" rel=\"noreferrer\">@lazynoda</a> (o sea, yo). Si, tecnicamente podria ver tu contraseña WiFi. No lo voy a hacer. Tampoco me voy a plantar en tu casa, a cientos de kilometros, solo para usar tu WiFi.",
@@ -289,7 +289,7 @@ const DICT = {
     "about.mod2":
       "La 2.8 reorganizo NodeDB y dejo el bloque de posicion fija usando una variable que ya no existe, asi que cualquier compilacion con posicion fija se cae con <code>'info' was not declared in this scope</code>. Upstream no lo detecta porque su <code>userPrefs.jsonc</code> lleva esas claves comentadas y ese bloque nunca se compila alli. Aqui se aplica el arreglo de los propios desarrolladores de Meshtastic, <a href=\"https://github.com/meshtastic/firmware/pull/11825\" target=\"_blank\" rel=\"noreferrer\">PR #11825</a>, copiado tal cual y sin cambiarle nada. Desde la 2.8.1 el arreglo ya viene en el firmware y no se aplica nada. Por debajo de la 2.8 tampoco hace falta: ahi la posicion fija compila tal cual, y no se toca nada.",
     "about.firmwareClosing":
-      "Los dos parches estan en <a href=\"https://github.com/lazynoda/meshtastic-builder/tree/main/docker/patches\" target=\"_blank\" rel=\"noreferrer\">el repositorio de este servicio</a>, se pueden leer enteros, y nunca los escribe quien pide la compilacion. Si un parche no aplica limpiamente, la compilacion se para antes de compilar en vez de seguir sin el.",
+      "Los dos parches estan en <a href=\"https://github.com/lazynoda/mesh-firmware-builder/tree/main/docker/patches\" target=\"_blank\" rel=\"noreferrer\">el repositorio de este servicio</a>, se pueden leer enteros, y nunca los escribe quien pide la compilacion. Si un parche no aplica limpiamente, la compilacion se para antes de compilar en vez de seguir sin el.",
     "about.comingSoon":
       "En breves vendra un cambio mas: poder fijar la clave privada del nodo. Desde la 2.8 el ID del nodo se calcula a partir de esa clave, asi que un reset de fabrica mantiene el mismo ID si la clave esta fijada. Publicare los cambios exactos cuando este hecho.",
     "about.trustTitle": "Confianza",
@@ -299,21 +299,21 @@ const DICT = {
       "Si prefieres compilarlo tu mismo, copia el <code>userPrefs.jsonc</code> generado y sigue la <a href=\"https://meshtastic.es/docs/configuracion-avanzada/preferencias-de-usuario\" target=\"_blank\" rel=\"noreferrer\">guia de preferencias de usuario de meshtastic.es</a>.",
   },
   en: {
-    "page.title": "Meshtastic Builder",
-    "header.tagline": "Custom Meshtastic firmware without hand-editing JSON",
+    "page.title": "Mesh Firmware Builder",
+    "header.tagline": "Custom Meshtastic® firmware without hand-editing JSON",
     "footer.trademark":
-      "Meshtastic is a registered trademark of Meshtastic LLC. This project is not affiliated with or endorsed by Meshtastic LLC, nor by any of the device brands listed. It is a hobby project.",
+      "Meshtastic® is a registered trademark of Meshtastic LLC. Meshtastic software components are released under various licenses, see <a href=\"https://github.com/meshtastic\" target=\"_blank\" rel=\"noreferrer\">GitHub</a> for details. No warranty is provided - use at your own risk. This site is not affiliated with or endorsed by the Meshtastic project, nor by any of the device brands listed. It is a hobby project. Official project: <a href=\"https://meshtastic.org\" target=\"_blank\" rel=\"noreferrer\">meshtastic.org</a>.",
     "footer.source":
-      "<a href=\"https://github.com/lazynoda/meshtastic-builder\" target=\"_blank\" rel=\"noreferrer\">Source code</a> under the AGPL-3.0 license.",
+      "<a href=\"https://github.com/lazynoda/mesh-firmware-builder\" target=\"_blank\" rel=\"noreferrer\">Source code</a> under the AGPL-3.0 license.",
 
     "step1.title": "Firmware and device",
     "step1.device": "Device",
-    "step1.mui": "Meshtastic UI",
+    "step1.mui": "Meshtastic® UI",
     "step1.hybrid": "JenCore + RNode (hybrid)",
     "step1.hybridHint":
       "Builds Jentastic's hybrid variant, with JenCore and RNode compiled in. JenCore: the node also hears and relays JenCore traffic and gets JC: channels. RNode: it can act as an RNode for Reticulum. Experimental, and it uses more memory.",
     "help.label": "Help",
-    "step1.muiHint": "Builds the Meshtastic UI (MUI) variant, the touch interface for the board's screen. Same as the Web Flasher's switch.",
+    "step1.muiHint": "Builds the Meshtastic® UI (MUI) variant, the touch interface for the board's screen. Same as the Web Flasher's switch.",
     "step1.devicePlaceholder": "Search for a device",
     "step1.firmware": "Firmware",
     "step1.version": "Firmware version",
@@ -323,12 +323,12 @@ const DICT = {
     "step1.revokedHint": "{firmware} withdrew this version. Use {tag}.",
     "step1.revokedHintNoReplacement": "{firmware} withdrew this version.",
     "device.unavailable": "unavailable",
-    "device.unavailableHint": "Not available with {firmware} for now: {reason}. We are working on it ({issue}). Meanwhile you can build it with Meshtastic Oficial.",
+    "device.unavailableHint": "Not available with {firmware} for now: {reason}. We are working on it ({issue}). Meanwhile you can build it with Meshtastic® Oficial.",
     "device.unavailable.firmware_too_big": "the firmware does not fit in this board's flash memory",
     "device.unavailable.platformio_unsupported": "this version needs a PlatformIO release the builder does not have yet",
     "device.unavailableFixedHint": "Not available with {firmware} {version}: {reason}. It works from {firmware} {tag}.",
     "device.unavailableComingHint":
-      "Not available with {firmware} {version}: {reason}. It will work from version {fixed}, which is not out yet ({issue}). Meanwhile you can build it with Meshtastic Oficial.",
+      "Not available with {firmware} {version}: {reason}. It will work from version {fixed}, which is not out yet ({issue}). Meanwhile you can build it with Meshtastic® Oficial.",
 
     "step2.title": "Node",
     "step2.longName": "Long name",
@@ -569,7 +569,7 @@ const DICT = {
     "nav.builder": "Back to the builder",
     "about.whatTitle": "What this is",
     "about.what":
-      "Meshtastic firmware compiled with your preferences already baked in, instead of the stock firmware that ships with the region, the names, the security keys and most everything else unset. You fill in the form, the server compiles the firmware for your device, and you download the ZIP.",
+      "Meshtastic® firmware compiled with your preferences already baked in, instead of the stock firmware that ships with the region, the names, the security keys and most everything else unset. You fill in the form, the server compiles the firmware for your device, and you download the ZIP.",
     "about.whereTitle": "Where it runs",
     "about.where":
       "The page and the builder run on an Oracle VPS in Madrid managed by <a href=\"https://t.me/lazynoda\" target=\"_blank\" rel=\"noreferrer\">@lazynoda</a> (that is me). Yes, technically I could read your WiFi password. I am not going to. I am also not driving hundreds of kilometres to your house just to use your WiFi.",
@@ -586,7 +586,7 @@ const DICT = {
     "about.mod2":
       "2.8 restructured NodeDB and left the fixed-position block using a variable that no longer exists, so any build with a fixed position dies with <code>'info' was not declared in this scope</code>. Upstream never notices because their own <code>userPrefs.jsonc</code> keeps those keys commented out, so that block is never compiled there. This service applies the Meshtastic developers' own fix, <a href=\"https://github.com/meshtastic/firmware/pull/11825\" target=\"_blank\" rel=\"noreferrer\">PR #11825</a>, copied verbatim with nothing changed. From 2.8.1 the fix ships with the firmware and nothing is applied. Below 2.8 nothing is needed either: fixed position compiles as shipped and nothing is touched.",
     "about.firmwareClosing":
-      "Both patches live in <a href=\"https://github.com/lazynoda/meshtastic-builder/tree/main/docker/patches\" target=\"_blank\" rel=\"noreferrer\">this service's repository</a>, can be read in full, and are never written by whoever requests a build. If a patch does not apply cleanly the build stops before compiling instead of carrying on without it.",
+      "Both patches live in <a href=\"https://github.com/lazynoda/mesh-firmware-builder/tree/main/docker/patches\" target=\"_blank\" rel=\"noreferrer\">this service's repository</a>, can be read in full, and are never written by whoever requests a build. If a patch does not apply cleanly the build stops before compiling instead of carrying on without it.",
     "about.comingSoon":
       "One more change is coming: setting the node private key. Since 2.8 the node ID is derived from that key, so a factory reset keeps the same node ID when the key is set. I will publish the exact changes once it is done.",
     "about.trustTitle": "Trust",

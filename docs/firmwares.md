@@ -11,7 +11,7 @@ Meshtastic: PlatformIO environments, `userPrefs.jsonc` at the root and
   "firmwares": [
     {
       "id": "meshtastic",
-      "name": "Meshtastic Oficial",
+      "name": "Meshtastic® Oficial",
       "url": "https://github.com/meshtastic/firmware",
       "versioning": "tags"
     },
@@ -176,7 +176,7 @@ and the board stays visible:
 "unavailableBoards": {
   "t-echo": {
     "reason": "firmware_too_big",
-    "issue": "https://github.com/lazynoda/meshtastic-builder/issues/3",
+    "issue": "https://github.com/lazynoda/mesh-firmware-builder/issues/3",
     "fixedSinceFirmwareVersion": "2.8.105"
   }
 }
@@ -208,7 +208,7 @@ A new code needs an ES and EN text there and in `UNAVAILABLE_REASONS` in
 Current entries: Jentastic, Heltec Mesh Node T096, Heltec Mesh Pocket (5000
 and 10000 mAh, with and without InkHUD) and LILYGO T-Echo, which overflow
 flash on v2.8.104 and earlier
-([#3](https://github.com/lazynoda/meshtastic-builder/issues/3)). `t-echo-inkhud`
+([#3](https://github.com/lazynoda/mesh-firmware-builder/issues/3)). `t-echo-inkhud`
 (~44 KB over) is listed too, although the builder does not offer it as a board
 today: its env declares no display name of its own. All carry
 `fixedSinceFirmwareVersion: "2.8.105"`, the release announced to fit them.

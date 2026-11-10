@@ -30,7 +30,7 @@ def main() -> None:
 
 
 def _dispatch() -> None:
-    parser = argparse.ArgumentParser(prog="meshtastic-builder")
+    parser = argparse.ArgumentParser(prog="mesh-firmware-builder")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("serve")
     sub.add_parser("init-db")
